@@ -305,6 +305,31 @@ def cmd_sync(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_dashboard(args: argparse.Namespace) -> None:
+    """Start the Beacon web dashboard."""
+    try:
+        import uvicorn
+    except ImportError:
+        print("Error: uvicorn is not installed.")
+        print("  Install web dependencies: pip install 'beacon[web]'")
+        sys.exit(1)
+
+    try:
+        from src.web.server import create_app
+    except ImportError as exc:
+        print(f"Error loading web module: {exc}")
+        sys.exit(1)
+
+    host = getattr(args, "host", "127.0.0.1")
+    port = getattr(args, "port", 8000)
+
+    print(f"Beacon dashboard starting at http://{host}:{port}")
+    print("Press Ctrl+C to stop.")
+
+    app = create_app()
+    uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
 # ---------------------------------------------------------------------------
 # Argument parser
 # ---------------------------------------------------------------------------
@@ -359,6 +384,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub_sync = subparsers.add_parser("sync", help="Sync all enabled sources")
     sub_sync.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
     sub_sync.set_defaults(func=cmd_sync)
+
+    # dashboard
+    sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
+    sub_dash.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
+    sub_dash.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
+    sub_dash.set_defaults(func=cmd_dashboard)
 
     return parser
 
