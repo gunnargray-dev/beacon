@@ -14,14 +14,14 @@
 
 ## Phase 2 -- Connectors (Sessions 5-10)
 
-- [ ] GitHub connector: notifications, PR reviews requested, issues assigned, recent commits
-- [ ] Calendar connector: today's meetings, upcoming conflicts, free/busy blocks
-- [ ] Email connector: unread count, flagged messages, sender frequency analysis
-- [ ] Weather connector: current conditions + forecast for configured location
-- [ ] News/RSS connector: headlines from configured feeds, keyword filtering
-- [ ] Hacker News connector: top stories, trending topics
-- [ ] `beacon sync` -- pull latest data from all connected sources
-- [ ] `beacon sources` -- list/add/remove/test connectors
+- [x] GitHub connector: notifications, PR reviews requested, issues assigned, recent commits
+- [x] Calendar connector: today's meetings, upcoming conflicts, free/busy blocks
+- [x] Email connector: unread count, flagged messages, sender frequency analysis
+- [x] Weather connector: current conditions + forecast for configured location
+- [x] News/RSS connector: headlines from configured feeds, keyword filtering
+- [x] Hacker News connector: top stories, trending topics
+- [x] `beacon sync` -- pull latest data from all connected sources
+- [x] `beacon sources` -- list/add/remove/test connectors
 
 ## Phase 3 -- Intelligence Engine (Sessions 11-16)
 

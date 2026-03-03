@@ -10,11 +10,11 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 1 |
-| PRs merged | 1 |
-| Source modules | 2 |
-| Tests passing | 92 |
-| CLI commands | 3 |
+| Sessions | 3 |
+| PRs merged | 3 |
+| Source modules | 7 |
+| Tests passing | 270 |
+| CLI commands | 5 |
 
 ## What It Does
 
