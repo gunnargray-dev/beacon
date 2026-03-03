@@ -38,4 +38,7 @@ def create_app() -> FastAPI:
     from src.web import routes  # noqa: PLC0415  (late import avoids circular)
     app.include_router(routes.router)
 
+    from src.advanced import api as advanced_api  # noqa: PLC0415
+    app.include_router(advanced_api.router, prefix="/api")
+
     return app
