@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 
 from src.store import BeaconStore, dump_action_item, dump_event
 from src.ops import compute_store_stats
+from src.store_pagination import clamp_limit, decode_cursor, encode_cursor
 
 router = APIRouter(tags=["store"])
 
@@ -65,9 +66,13 @@ async def api_store_events(
     since: str | None = None,
     until: str | None = None,
     limit: int = 100,
+    cursor: str | None = None,
+    sort: str = "occurred_at_desc",
 ) -> JSONResponse:
-    if limit < 1 or limit > 500:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    try:
+        limit = clamp_limit(limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     store = _get_store()
     if not store.db_path.exists():
@@ -79,9 +84,20 @@ async def api_store_events(
         since=_parse_iso_dt(since),
         until=_parse_iso_dt(until),
         limit=limit,
+        cursor=cursor,
+        sort=sort,
     )
     payload: list[dict[str, Any]] = [dump_event(e) for e in events]
-    return JSONResponse({"events": payload, "count": len(payload)})
+    next_cursor = None
+    if payload:
+        last = payload[-1]
+        if last.get("created_at") and last.get("id"):
+            # created_at in payload is iso string
+            next_cursor = encode_cursor(
+                created_at=_parse_iso_dt(str(last["created_at"])) or datetime.now(tz=timezone.utc),
+                item_id=str(last["id"]),
+            )
+    return JSONResponse({"events": payload, "count": len(payload), "next_cursor": next_cursor})
 
 
 @router.get("/stats")
@@ -116,9 +132,13 @@ async def api_store_action_items(
     completed: bool | None = None,
     due_before: str | None = None,
     limit: int = 100,
+    cursor: str | None = None,
+    sort: str = "default",
 ) -> JSONResponse:
-    if limit < 1 or limit > 500:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    try:
+        limit = clamp_limit(limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     store = _get_store()
     if not store.db_path.exists():
@@ -131,6 +151,16 @@ async def api_store_action_items(
         completed=completed,
         due_before=_parse_iso_dt(due_before),
         limit=limit,
+        cursor=cursor,
+        sort=sort,
     )
     payload: list[dict[str, Any]] = [dump_action_item(a) for a in items]
-    return JSONResponse({"action_items": payload, "count": len(payload)})
+    next_cursor = None
+    if payload:
+        last = payload[-1]
+        if last.get("created_at") and last.get("id"):
+            next_cursor = encode_cursor(
+                created_at=_parse_iso_dt(str(last["created_at"])) or datetime.now(tz=timezone.utc),
+                item_id=str(last["id"]),
+            )
+    return JSONResponse({"action_items": payload, "count": len(payload), "next_cursor": next_cursor})
