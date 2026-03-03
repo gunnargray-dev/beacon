@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "beacon"
+version = "0.1.0"
+description = "Your personal ops agent -- unified briefings, action items, and smart notifications"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Gunnar", email = "gunnar@perplexity.ai"},
+    {name = "Perplexity Computer"},
+]
+
+[project.optional-dependencies]
+web = ["fastapi>=0.104.0", "uvicorn>=0.24.0", "jinja2>=3.1.0"]
+dev = ["pytest>=7.4.0", "pytest-cov>=4.1.0"]
+
+[project.scripts]
+beacon = "src.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
