@@ -11,6 +11,7 @@ Endpoints
 GET /api/store/meta
 GET /api/store/events
 GET /api/store/action-items
+GET /api/store/stats
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from src.store import BeaconStore, dump_action_item, dump_event
+from src.ops import compute_store_stats
 
 router = APIRouter(tags=["store"])
 
@@ -80,6 +82,30 @@ async def api_store_events(
     )
     payload: list[dict[str, Any]] = [dump_event(e) for e in events]
     return JSONResponse({"events": payload, "count": len(payload)})
+
+
+@router.get("/stats")
+async def api_store_stats() -> JSONResponse:
+    store = _get_store()
+    if not store.db_path.exists():
+        raise HTTPException(status_code=404, detail="store database not found")
+
+    stats = compute_store_stats(store)
+    return JSONResponse(
+        {
+            "db_path": str(store.db_path),
+            "events": {
+                "total": stats.total_events,
+                "by_source_type": stats.events_by_source_type,
+            },
+            "action_items": {
+                "total": stats.total_action_items,
+                "completed": stats.completed_action_items,
+                "pending": stats.pending_action_items,
+                "by_source_type": stats.action_items_by_source_type,
+            },
+        }
+    )
 
 
 @router.get("/action-items")

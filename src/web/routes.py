@@ -168,12 +168,25 @@ async def calendar_view(request: Request) -> HTMLResponse:
 
 @router.get("/sources", response_class=HTMLResponse)
 async def sources_view(request: Request) -> HTMLResponse:
-    cache = _load_cache()
+    cache = load_dashboard_data(cache_file=_CACHE_FILE)
     events = cache.get("events", [])
     action_items = cache.get("action_items", [])
 
+    backend = cache.get("backend", "cache")
+    db_path = cache.get("db_path")
+
     # Summarise per source
     source_stats: dict[str, dict[str, Any]] = {}
+
+    # backend summary row
+    source_stats["__backend__"] = {
+        "id": "backend",
+        "type": "store" if backend == "store" else "sync cache",
+        "icon": "◎" if backend == "store" else "◇",
+        "event_count": len(events),
+        "action_count": len(action_items),
+        "latest": db_path if db_path else None,
+    }
     for ev in events:
         st = ev.get("source_type", "custom")
         sid = ev.get("source_id", st)
