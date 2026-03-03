@@ -69,15 +69,15 @@
 ## Phase 7 -- Persistence & Query (Sessions 33+)
 
 - [x] Persistent local store: SQLite-backed event/action storage (no more ephemeral sync cache)
-- [x] `beacon ingest` -- import the latest sync cache into the local store (dedupe by event/action id)
+- [x] `beacon ingest` -- import the latest sync cache JSON into the local store (dedupe by event/action id)
 - [x] `beacon query` -- basic query/filter of events and action items (by source, date range, priority, completion)
 - [x] Web dashboard: read from the store when available (fallback to sync cache)
 - [x] Store-backed API endpoints: query events/action items directly from SQLite (with filters)
 
 ## Phase 8 -- Ops & Observability (Sessions 37+)
 
-- [ ] Web UI: show backend info (store vs sync cache) + active db_path on health/status panel
+- [x] Web UI: show backend info (store vs sync cache) + active db_path on health/status panel
 - [x] CLI: `beacon db` command to print db_path + counts for events/action_items
 - [x] Store queries: add pagination (cursor or offset) + stable sorting options
 - [x] Web API: add /api/store/stats (counts by source_type, completed vs pending)
-- [ ] Export: allow exporting directly from store queries (no cache required)
+- [x] Export: allow exporting directly from store queries (no cache required)
