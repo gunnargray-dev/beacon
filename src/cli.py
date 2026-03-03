@@ -259,29 +259,33 @@ def cmd_sync(args: argparse.Namespace) -> None:
             events, action_items = connector.sync()
             print(f"done ({len(events)} events, {len(action_items)} action items)")
             for ev in events:
-                all_events.append({
-                    "id": ev.id,
-                    "title": ev.title,
-                    "source_id": ev.source_id,
-                    "source_type": ev.source_type.value,
-                    "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
-                    "summary": ev.summary,
-                    "url": ev.url,
-                    "metadata": ev.metadata,
-                })
+                all_events.append(
+                    {
+                        "id": ev.id,
+                        "title": ev.title,
+                        "source_id": ev.source_id,
+                        "source_type": ev.source_type.value,
+                        "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+                        "summary": ev.summary,
+                        "url": ev.url,
+                        "metadata": ev.metadata,
+                    }
+                )
             for ai in action_items:
-                all_action_items.append({
-                    "id": ai.id,
-                    "title": ai.title,
-                    "source_id": ai.source_id,
-                    "source_type": ai.source_type.value,
-                    "priority": ai.priority.value,
-                    "due_at": ai.due_at.isoformat() if ai.due_at else None,
-                    "url": ai.url,
-                    "completed": ai.completed,
-                    "notes": ai.notes,
-                    "metadata": ai.metadata,
-                })
+                all_action_items.append(
+                    {
+                        "id": ai.id,
+                        "title": ai.title,
+                        "source_id": ai.source_id,
+                        "source_type": ai.source_type.value,
+                        "priority": ai.priority.value,
+                        "due_at": ai.due_at.isoformat() if ai.due_at else None,
+                        "url": ai.url,
+                        "completed": ai.completed,
+                        "notes": ai.notes,
+                        "metadata": ai.metadata,
+                    }
+                )
         except ConnectorError as exc:
             print(f"ERROR -- {exc}")
             any_error = True
@@ -291,6 +295,7 @@ def cmd_sync(args: argparse.Namespace) -> None:
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file = cache_dir / "last_sync.json"
     from datetime import datetime, timezone
+
     payload = {
         "synced_at": datetime.now(tz=timezone.utc).isoformat(),
         "events": all_events,
@@ -331,7 +336,12 @@ def cmd_actions(args: argparse.Namespace) -> None:
     from pathlib import Path
 
     from src.intelligence.actions import ActionExtractor
-    from src.intelligence.briefing import BriefingGenerator, _load_sync_data, _action_from_dict, _event_from_dict
+    from src.intelligence.briefing import (
+        BriefingGenerator,
+        _action_from_dict,
+        _event_from_dict,
+        _load_sync_data,
+    )
     from src.intelligence.priority import PriorityScorer
 
     sync_path = getattr(args, "sync_file", None)
@@ -368,7 +378,7 @@ def cmd_focus(args: argparse.Namespace) -> None:
     from pathlib import Path
 
     from src.intelligence.actions import ActionExtractor
-    from src.intelligence.briefing import _load_sync_data, _action_from_dict, _event_from_dict
+    from src.intelligence.briefing import _action_from_dict, _event_from_dict, _load_sync_data
     from src.intelligence.priority import PriorityScorer
 
     sync_path = getattr(args, "sync_file", None)
@@ -549,9 +559,74 @@ def cmd_digest(args: argparse.Namespace) -> None:
             print(f"FAIL -- {exc}")
 
     if not sent_any:
-        print("No notification channels configured \u2014 printing digest to stdout.")
+        print("No notification channels configured — printing digest to stdout.")
         print()
         print(digest.as_text())
+
+
+def cmd_query(args: argparse.Namespace) -> None:
+    """Query events and action items from the local Beacon store."""
+    import json
+
+    from src.store import BeaconStore, dump_action_item, dump_event
+
+    store = BeaconStore(getattr(args, "db", None))
+
+    mode = getattr(args, "mode", "actions") or "actions"
+    limit = int(getattr(args, "limit", 25) or 25)
+
+    if mode == "events":
+        since = getattr(args, "since", None)
+        until = getattr(args, "until", None)
+        src_type = getattr(args, "source_type", None)
+        src_name = getattr(args, "source", None)
+        from datetime import datetime
+
+        events = store.query_events(
+            source_type=src_type,
+            source_name=src_name,
+            since=datetime.fromisoformat(since) if since else None,
+            until=datetime.fromisoformat(until) if until else None,
+            limit=limit,
+        )
+        print(json.dumps([dump_event(e) for e in events], indent=2, sort_keys=True))
+        return
+
+    # actions
+    src_type = getattr(args, "source_type", None)
+    src_name = getattr(args, "source", None)
+    priority = getattr(args, "priority", None)
+    completed_flag = getattr(args, "completed", None)
+    completed: bool | None
+    if completed_flag is None:
+        completed = None
+    else:
+        completed = bool(completed_flag)
+
+    actions = store.query_action_items(
+        source_type=src_type,
+        source_name=src_name,
+        priority=priority,
+        completed=completed,
+        limit=limit,
+    )
+    print(json.dumps([dump_action_item(a) for a in actions], indent=2, sort_keys=True))
+
+
+def cmd_ingest(args: argparse.Namespace) -> None:
+    """Ingest a sync cache JSON into the local Beacon store."""
+    from pathlib import Path
+
+    from src.ingest import ingest_sync_cache
+
+    sync_file = getattr(args, "sync_file", None)
+    if not sync_file:
+        print("Error: --sync-file is required")
+        sys.exit(1)
+
+    db_path = getattr(args, "db", None)
+    res = ingest_sync_cache(Path(sync_file), db_path=db_path)
+    print(f"Ingested: {res.events_written} events written, {res.actions_written} action items written")
 
 
 def cmd_dashboard(args: argparse.Namespace) -> None:
@@ -587,7 +662,7 @@ def cmd_dashboard(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="beacon",
-        description="Your personal ops agent \u2014 unified briefings, action items, and smart notifications.",
+        description="Your personal ops agent — unified briefings, action items, and smart notifications.",
     )
     parser.add_argument(
         "--version",
@@ -673,6 +748,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub_digest.add_argument("--force", action="store_true", help="Send even during silence hours")
     sub_digest.set_defaults(func=cmd_digest)
+
+    # ingest
+    sub_ingest = subparsers.add_parser("ingest", help="Import a sync cache into the local store")
+    sub_ingest.add_argument("--sync-file", metavar="PATH", required=True, help="Path to sync cache JSON")
+    sub_ingest.add_argument(
+        "--db",
+        metavar="PATH",
+        default=None,
+        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
+    )
+    sub_ingest.set_defaults(func=cmd_ingest)
+
+    # query
+    sub_query = subparsers.add_parser("query", help="Query the local store")
+    sub_query.add_argument(
+        "mode",
+        nargs="?",
+        choices=["actions", "events"],
+        default="actions",
+        help="What to query (default: actions)",
+    )
+    sub_query.add_argument(
+        "--db",
+        metavar="PATH",
+        default=None,
+        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
+    )
+    sub_query.add_argument("--limit", type=int, default=25, help="Max results (default: 25)")
+    sub_query.add_argument("--source-type", dest="source_type", default=None, help="Filter by source type (e.g. github)")
+    sub_query.add_argument("--source", default=None, help="Filter by source name/id")
+    sub_query.add_argument("--priority", default=None, help="Filter action items by priority")
+    sub_query.add_argument("--completed", action="store_true", help="Only completed action items")
+    sub_query.add_argument("--since", default=None, help="Events since ISO datetime")
+    sub_query.add_argument("--until", default=None, help="Events until ISO datetime")
+    sub_query.set_defaults(func=cmd_query)
 
     # dashboard
     sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
