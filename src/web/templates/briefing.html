@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Briefing{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">briefing</h1>
+  <div class="page-meta">
+    <span class="meta-item">{{ today }}</span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item">{{ total_events }} events</span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item muted">{{ synced_at }}</span>
+  </div>
+</div>
+
+{% if urgent_actions or high_actions %}
+<div class="dash-section">
+  <div class="section-label urgent-label">action required</div>
+  <ul class="action-list">
+    {% for a in urgent_actions %}
+    <li class="action-item priority-urgent">
+      <span class="action-priority">urgent</span>
+      <div class="action-body">
+        <div class="action-title">
+          {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
+          {% else %}{{ a.title }}{% endif %}
+        </div>
+        {% if a.due_at %}<div class="action-meta"><span class="action-due">due {{ a.due_at[:10] }}</span></div>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+    {% for a in high_actions %}
+    <li class="action-item priority-high">
+      <span class="action-priority">high</span>
+      <div class="action-body">
+        <div class="action-title">
+          {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a>
+          {% else %}{{ a.title }}{% endif %}
+        </div>
+        {% if a.due_at %}<div class="action-meta"><span class="action-due">due {{ a.due_at[:10] }}</span></div>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% for source_type, evs in events_by_source.items() %}
+<div class="dash-section">
+  <div class="section-label">{{ source_icon(source_type) }} {{ source_type.replace("_", " ").title() }} ({{ evs|length }})</div>
+  <div class="timeline">
+    {% for ev in evs[:15] %}
+    <div class="timeline-item">
+      <span class="timeline-source">{{ source_icon(ev.source_type) }}</span>
+      <div class="timeline-body">
+        <div class="timeline-title">
+          {% if ev.url %}<a href="{{ ev.url }}" target="_blank" rel="noopener">{{ ev.title }}</a>
+          {% else %}{{ ev.title }}{% endif %}
+        </div>
+        {% if ev.summary %}<div class="timeline-summary">{{ ev.summary }}</div>{% endif %}
+        {% if ev.occurred_at %}<div class="timeline-meta"><span class="timeline-time">{{ ev.occurred_at[:10] }}</span></div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if evs|length > 15 %}
+    <div class="more-items">+{{ evs|length - 15 }} more</div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+{% if not events_by_source and not urgent_actions and not high_actions %}
+<div class="empty-state">
+  <div class="empty-icon">◎</div>
+  <div class="empty-title">No briefing data yet</div>
+  <div class="empty-desc">Run <code>beacon sync</code> to fetch your latest data.</div>
+</div>
+{% endif %}
+{% endblock %}
