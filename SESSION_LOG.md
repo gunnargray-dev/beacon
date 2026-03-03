@@ -117,3 +117,19 @@
 **Stats**: 540+ tests passing, Phase 7 complete
 
 ---
+
+## Session 7 -- 2026-03-03
+
+**PR**: [#12 Session 7: Store-backed API endpoints](https://github.com/gunnargray-dev/beacon/pull/12)
+
+**Completed**:
+- `src/web/store_api.py` -- Store-backed JSON endpoints mounted at `/api/store/*`:
+  - `GET /api/store/meta` — db_path + whether the DB exists
+  - `GET /api/store/events` — filters: source_type, source_id, since, until, limit
+  - `GET /api/store/action-items` — filters: source_type, source_id, priority, completed, due_before, limit
+- `src/web/server.py` -- Mount store API router
+- `tests/test_web_store_api.py` -- FastAPI tests for validation + missing DB behavior
+
+**Stats**: 540+ tests passing, PRs merged: 11, Sessions: 7
+
+---
