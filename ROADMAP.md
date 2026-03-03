@@ -25,43 +25,43 @@
 
 ## Phase 3 -- Intelligence Engine (Sessions 11-16)
 
-- [ ] Daily briefing generator: structured morning summary across all sources
-- [ ] Action item extractor: surface todos, review requests, deadlines from all sources
-- [ ] Priority scorer: rank items by urgency, sender importance, deadline proximity
-- [ ] Conflict detector: flag calendar overlaps, double-booked slots
-- [ ] Pattern analyzer: identify recurring meetings, email response times, commit velocity
-- [ ] `beacon brief` -- generate and display today's briefing
-- [ ] `beacon actions` -- list prioritized action items across all sources
-- [ ] `beacon focus` -- show a distraction-free view of today's top 3 priorities
+- [x] Daily briefing generator: structured morning summary across all sources
+- [x] Action item extractor: surface todos, review requests, deadlines from all sources
+- [x] Priority scorer: rank items by urgency, sender importance, deadline proximity
+- [x] Conflict detector: flag calendar overlaps, double-booked slots
+- [x] Pattern analyzer: identify recurring meetings, email response times, commit velocity
+- [x] `beacon brief` -- generate and display today's briefing
+- [x] `beacon actions` -- list prioritized action items across all sources
+- [x] `beacon focus` -- show a distraction-free view of today's top 3 priorities
 
 ## Phase 4 -- Web Dashboard (Sessions 17-22)
 
-- [ ] FastAPI server with Jinja2 templates
-- [ ] Landing page: Beacon branding, feature overview, quickstart
-- [ ] Dashboard: unified timeline of events across all sources
-- [ ] Briefing view: formatted daily briefing with action items
-- [ ] Calendar view: visual day/week layout with meeting details
-- [ ] Source health panel: connection status, last sync, error indicators
-- [ ] Settings page: manage sources, preferences, notification rules
-- [ ] Dark mode (default) with light mode toggle
+- [x] FastAPI server with Jinja2 templates
+- [x] Landing page: Beacon branding, feature overview, quickstart
+- [x] Dashboard: unified timeline of events across all sources
+- [x] Briefing view: formatted daily briefing with action items
+- [x] Calendar view: visual day/week layout with meeting details
+- [x] Source health panel: connection status, last sync, error indicators
+- [x] Settings page: manage sources, preferences, notification rules
+- [x] Dark mode (default) with light mode toggle
 
 ## Phase 5 -- Notifications & Automation (Sessions 23-28)
 
-- [ ] Notification rules engine: configurable triggers (e.g., "PR review requested -> notify")
-- [ ] Digest scheduler: configurable morning/evening digest delivery
-- [ ] Slack/Discord webhook integration for notifications
-- [ ] Email digest sender: HTML-formatted daily summary
-- [ ] Smart silence: suppress notifications during focus blocks or after hours
-- [ ] `beacon notify` -- test notification delivery
-- [ ] `beacon digest` -- manually trigger a digest
+- [x] Notification rules engine: configurable triggers (e.g., "PR review requested -> notify")
+- [x] Digest scheduler: configurable morning/evening digest delivery
+- [x] Slack/Discord webhook integration for notifications
+- [x] Email digest sender: HTML-formatted daily summary
+- [x] Smart silence: suppress notifications during focus blocks or after hours
+- [x] `beacon notify` -- test notification delivery
+- [x] `beacon digest` -- manually trigger a digest
 
 ## Phase 6 -- Advanced Intelligence (Sessions 29+)
 
-- [ ] Weekly retrospective: auto-generate a summary of the week's activity
-- [ ] Meeting prep: pull context for upcoming meetings (attendee info, related emails, docs)
-- [ ] Relationship tracker: who you interact with most, response patterns
-- [ ] Time audit: how your time is spent across meetings, deep work, admin
-- [ ] Trend detection: flag unusual patterns (spike in PRs, drop in response time)
-- [ ] Export system: PDF/HTML/JSON briefing export
-- [ ] API: RESTful endpoints for all data and briefings
-- [ ] Plugin marketplace: community-contributed connectors
+- [x] Weekly retrospective: auto-generate a summary of the week's activity
+- [x] Meeting prep: pull context for upcoming meetings (attendee info, related emails, docs)
+- [x] Relationship tracker: who you interact with most, response patterns
+- [x] Time audit: how your time is spent across meetings, deep work, admin
+- [x] Trend detection: flag unusual patterns (spike in PRs, drop in response time)
+- [x] Export system: PDF/HTML/JSON briefing export
+- [x] API: RESTful endpoints for all data and briefings
+- [x] Plugin marketplace: community-contributed connectors
