@@ -75,6 +75,9 @@ def _load_connector_registry() -> None:
         "src.connectors.calendar_connector",
         "src.connectors.email_connector",
         "src.connectors.news",
+        "src.connectors.github_connector",
+        "src.connectors.weather",
+        "src.connectors.hackernews",
     ]
     for mod in _connector_modules:
         try:
@@ -195,6 +198,113 @@ def cmd_sources_test(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_sync(args: argparse.Namespace) -> None:
+    """Sync all enabled sources and cache results to ~/.cache/beacon/last_sync.json."""
+    import importlib
+    import json
+    import uuid
+    from pathlib import Path
+
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        print(f"Error loading config: {exc}")
+        sys.exit(1)
+
+    _load_connector_registry()
+
+    from src.connectors.base import ConnectorError, registry as connector_registry
+    from src.models import Source, SourceType
+
+    enabled = config.enabled_sources()
+    if not enabled:
+        print("No enabled sources configured.")
+        return
+
+    all_events: list[dict] = []
+    all_action_items: list[dict] = []
+    any_error = False
+
+    for src_cfg in enabled:
+        print(f"Syncing {src_cfg.name!r} ({src_cfg.type}) ...", end=" ", flush=True)
+        try:
+            src_type = SourceType(src_cfg.type)
+        except ValueError:
+            print(f"SKIP -- unknown type {src_cfg.type!r}")
+            continue
+
+        connector_cls = connector_registry.get(src_type)
+        if connector_cls is None:
+            print(f"SKIP -- no connector registered for {src_cfg.type!r}")
+            continue
+
+        source = Source(
+            name=src_cfg.name,
+            source_type=src_type,
+            enabled=src_cfg.enabled,
+            config=src_cfg.config,
+        )
+        connector = connector_cls(source)
+
+        if not connector.validate_config():
+            print(f"SKIP -- config invalid for {connector_cls.__name__}")
+            continue
+
+        try:
+            events, action_items = connector.sync()
+            print(f"done ({len(events)} events, {len(action_items)} action items)")
+            for ev in events:
+                all_events.append({
+                    "id": ev.id,
+                    "title": ev.title,
+                    "source_id": ev.source_id,
+                    "source_type": ev.source_type.value,
+                    "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+                    "summary": ev.summary,
+                    "url": ev.url,
+                    "metadata": ev.metadata,
+                })
+            for ai in action_items:
+                all_action_items.append({
+                    "id": ai.id,
+                    "title": ai.title,
+                    "source_id": ai.source_id,
+                    "source_type": ai.source_type.value,
+                    "priority": ai.priority.value,
+                    "due_at": ai.due_at.isoformat() if ai.due_at else None,
+                    "url": ai.url,
+                    "completed": ai.completed,
+                    "notes": ai.notes,
+                    "metadata": ai.metadata,
+                })
+        except ConnectorError as exc:
+            print(f"ERROR -- {exc}")
+            any_error = True
+
+    # Write cache
+    cache_dir = Path.home() / ".cache" / "beacon"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / "last_sync.json"
+    from datetime import datetime, timezone
+    payload = {
+        "synced_at": datetime.now(tz=timezone.utc).isoformat(),
+        "events": all_events,
+        "action_items": all_action_items,
+    }
+    cache_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print()
+    print(f"Sync complete: {len(all_events)} events, {len(all_action_items)} action items")
+    print(f"Cached to: {cache_file}")
+
+    if any_error:
+        sys.exit(1)
+
+
 # ---------------------------------------------------------------------------
 # Argument parser
 # ---------------------------------------------------------------------------
@@ -244,6 +354,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub_src_test.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
     sub_src_test.set_defaults(func=cmd_sources_test)
+
+    # sync
+    sub_sync = subparsers.add_parser("sync", help="Sync all enabled sources")
+    sub_sync.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_sync.set_defaults(func=cmd_sync)
 
     return parser
 
