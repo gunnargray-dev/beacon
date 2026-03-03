@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">calendar</h1>
+  <div class="page-meta">
+    <span class="meta-item">{{ today }}</span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item muted">{{ synced_at }}</span>
+  </div>
+</div>
+
+<div class="calendar-grid">
+  {% for day in week_days %}
+  {% set day_name = day | replace("-", "") %}
+  <div class="cal-day{% if day == today %} today{% endif %}">
+    <div class="cal-day-header">
+      <span class="cal-day-name">
+        {% set parts = day.split("-") %}
+        {{ ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][loop.index0 % 7] if week_days|length <= 7 else day[:3] }}
+      </span>
+      <span class="cal-day-date">{{ day[5:] }}</span>
+    </div>
+    <div class="cal-events">
+      {% if day in day_events %}
+        {% for ev in day_events[day][:5] %}
+        <div class="cal-event">
+          <span>{{ source_icon(ev.source_type) }}</span>
+          {% if ev.url %}<a href="{{ ev.url }}" target="_blank" rel="noopener">{{ ev.title }}</a>
+          {% else %}{{ ev.title }}{% endif %}
+        </div>
+        {% endfor %}
+        {% if day_events[day]|length > 5 %}
+        <div class="cal-more">+{{ day_events[day]|length - 5 }} more</div>
+        {% endif %}
+      {% else %}
+        <div class="cal-empty">—</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
