@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import base64
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -190,6 +191,8 @@ class BeaconStore:
         since: datetime | None = None,
         until: datetime | None = None,
         limit: int = 100,
+        cursor: str | None = None,
+        sort: str = "occurred_at_desc",
     ) -> list[Event]:
         self.init_db()
         where: list[str] = []
@@ -208,13 +211,43 @@ class BeaconStore:
             where.append("occurred_at <= ?")
             params.append(_dt_to_iso(until))
 
+        if sort not in {"occurred_at_desc", "occurred_at_asc"}:
+            raise ValueError(f"Invalid sort: {sort!r}")
+
+        order_sql = (
+            "ORDER BY occurred_at DESC, created_at DESC, id DESC "
+            if sort == "occurred_at_desc"
+            else "ORDER BY occurred_at ASC, created_at ASC, id ASC "
+        )
+
+        if cursor:
+            # Cursor pagination uses (occurred_at, created_at, id) with the chosen direction.
+            cur = json.loads(
+                base64.urlsafe_b64decode((cursor + "=" * (-len(cursor) % 4)).encode("ascii")).decode(
+                    "utf-8"
+                )
+            )
+            c_occ = str(cur.get("occurred_at"))
+            c_created = str(cur.get("created_at"))
+            c_id = str(cur.get("id"))
+            if sort == "occurred_at_desc":
+                where.append(
+                    "(occurred_at < ? OR (occurred_at = ? AND (created_at < ? OR (created_at = ? AND id < ?))))"
+                )
+                params.extend([c_occ, c_occ, c_created, c_created, c_id])
+            else:
+                where.append(
+                    "(occurred_at > ? OR (occurred_at = ? AND (created_at > ? OR (created_at = ? AND id > ?))))"
+                )
+                params.extend([c_occ, c_occ, c_created, c_created, c_id])
+
         where_sql = (" WHERE " + " AND ".join(where)) if where else ""
 
         sql = (
             "SELECT id, title, source_id, source_type, occurred_at, summary, url, metadata_json, created_at "
             "FROM events"
             f"{where_sql} "
-            "ORDER BY occurred_at DESC "
+            f"{order_sql}"
             "LIMIT ?"
         )
         params.append(int(limit))
@@ -248,6 +281,8 @@ class BeaconStore:
         completed: bool | None = None,
         due_before: datetime | None = None,
         limit: int = 100,
+        cursor: str | None = None,
+        sort: str = "default",
     ) -> list[ActionItem]:
         self.init_db()
         where: list[str] = []
@@ -269,13 +304,33 @@ class BeaconStore:
             where.append("due_at IS NOT NULL AND due_at <= ?")
             params.append(_dt_to_iso(due_before))
 
+        if sort not in {"default", "created_at_desc"}:
+            raise ValueError(f"Invalid sort: {sort!r}")
+
+        if sort == "created_at_desc":
+            order_sql = "ORDER BY created_at DESC, id DESC "
+        else:
+            order_sql = "ORDER BY completed ASC, due_at IS NULL, due_at ASC, created_at DESC, id DESC "
+
+        if cursor:
+            cur = json.loads(
+                base64.urlsafe_b64decode((cursor + "=" * (-len(cursor) % 4)).encode("ascii")).decode(
+                    "utf-8"
+                )
+            )
+            c_created = str(cur.get("created_at"))
+            c_id = str(cur.get("id"))
+            # Both supported sorts are descending on (created_at, id)
+            where.append("(created_at < ? OR (created_at = ? AND id < ?))")
+            params.extend([c_created, c_created, c_id])
+
         where_sql = (" WHERE " + " AND ".join(where)) if where else ""
 
         sql = (
             "SELECT id, title, source_id, source_type, priority, due_at, url, completed, notes, metadata_json, created_at "
             "FROM action_items"
             f"{where_sql} "
-            "ORDER BY completed ASC, due_at IS NULL, due_at ASC, created_at DESC "
+            f"{order_sql}"
             "LIMIT ?"
         )
         params.append(int(limit))
