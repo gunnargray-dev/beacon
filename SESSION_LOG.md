@@ -148,3 +148,21 @@
 **Stats**: 540+ tests passing, PRs merged: 12, Sessions: 8
 
 ---
+
+## Session 9 -- 2026-03-03
+
+**PR**: [#15 Session 9: Store queries pagination + stable sorting](https://github.com/gunnargray-dev/beacon/pull/15)
+
+**Completed**:
+- `src/store.py` -- cursor + sort support for store-backed queries:
+  - `query_events(..., cursor, sort)` with stable ordering and tie-breakers
+  - `query_action_items(..., cursor, sort)` with stable ordering and tie-breakers
+- `src/web/store_api.py` -- API upgrades:
+  - `GET /api/store/events` accepts `cursor` + `sort` and returns `next_cursor`
+  - `GET /api/store/action-items` accepts `cursor` + `sort` and returns `next_cursor`
+- `src/store_pagination.py` -- stdlib cursor helpers (encode/decode) + limit clamping
+- `tests/test_store_pagination.py`, `tests/test_store_query_pagination.py` -- new tests for cursor helpers and store pagination
+
+**Stats**: 540+ tests passing, PRs merged: 13, Sessions: 9
+
+---
