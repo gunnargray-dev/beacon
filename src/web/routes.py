@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -10,26 +9,28 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from src.web.data import _CACHE_FILE as _DATA_CACHE_FILE
+from src.web.data import load_dashboard_data
 from src.web.server import templates
+
+# Backwards-compatible symbol for tests that patch the cache file location.
+_CACHE_FILE = _DATA_CACHE_FILE
 
 router = APIRouter()
 
-_CACHE_FILE = Path.home() / ".cache" / "beacon" / "last_sync.json"
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _load_cache() -> dict[str, Any]:
-    """Load the last sync cache, returning an empty structure if missing."""
-    if _CACHE_FILE.exists():
-        try:
-            return json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
-    return {"synced_at": None, "events": [], "action_items": []}
+    """Backwards-compatible test hook.
+
+    The web module historically exposed `_load_cache()` and `_CACHE_FILE`, which
+    unit tests patch to simulate different last_sync.json contents.
+
+    We keep this API stable while still allowing the dashboard to read from the
+    SQLite store when present.
+    """
+
+    return load_dashboard_data(cache_file=_CACHE_FILE)
 
 
 def _format_synced_at(synced_at: str | None) -> str:
@@ -148,6 +149,7 @@ async def calendar_view(request: Request) -> HTMLResponse:
 
     # Past 7 days + next 7 days
     from datetime import timedelta
+
     today = datetime.now(tz=timezone.utc).date()
     week_days = [(today + timedelta(days=i)).isoformat() for i in range(-3, 8)]
 
@@ -220,6 +222,7 @@ async def settings(request: Request) -> HTMLResponse:
             config_info["path"] = str(cp)
             try:
                 import tomllib  # type: ignore[import-not-found]
+
                 config_info["raw"] = tomllib.loads(cp.read_text(encoding="utf-8"))
             except Exception:
                 config_info["raw"] = {}
