@@ -77,7 +77,7 @@
 ## Phase 8 -- Ops & Observability (Sessions 37+)
 
 - [ ] Web UI: show backend info (store vs sync cache) + active db_path on health/status panel
-- [ ] CLI: `beacon db` command to print db_path + counts for events/action_items
+- [x] CLI: `beacon db` command to print db_path + counts for events/action_items
 - [ ] Store queries: add pagination (cursor or offset) + stable sorting options
-- [ ] Web API: add /api/store/stats (counts by source_type, completed vs pending)
+- [x] Web API: add /api/store/stats (counts by source_type, completed vs pending)
 - [ ] Export: allow exporting directly from store queries (no cache required)

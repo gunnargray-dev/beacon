@@ -133,3 +133,18 @@
 **Stats**: 540+ tests passing, PRs merged: 11, Sessions: 7
 
 ---
+
+## Session 8 -- 2026-03-03
+
+**PR**: [#13 Session 8: Ops stats endpoint + beacon db](https://github.com/gunnargray-dev/beacon/pull/13)
+
+**Completed**:
+- `src/ops.py` -- stdlib-only store stats helper: counts for events/action items, completed vs pending, by source_type
+- `src/web/store_api.py` -- added `GET /api/store/stats` returning the above counts
+- `src/db_cli.py` + `src/cli.py` -- added `beacon db` command to print db_path + counts
+- `src/web/routes.py` + sources page -- adds a "backend" summary card (store vs sync cache) and shows active db_path when store-backed
+- `tests/test_ops.py`, `tests/test_db_cli.py`, `tests/test_web_store_stats_api.py` -- new tests for ops & observability
+
+**Stats**: 540+ tests passing, PRs merged: 12, Sessions: 8
+
+---
