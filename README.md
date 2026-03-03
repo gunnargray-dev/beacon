@@ -10,11 +10,15 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 3 |
-| PRs merged | 3 |
+| Sessions | 4 |
+| PRs merged | 8 |
 | Source modules | 7 |
-| Tests passing | 270 |
-| CLI commands | 5 |
+| Intelligence modules | 5 |
+| Notification modules | 5 |
+| Advanced modules | 8 |
+| Tests passing | 537+ |
+| CLI commands | 12 |
+| Roadmap phases complete | 6/6 |
 
 ## What It Does
 
@@ -22,9 +26,10 @@
 - **Action Items**: Automatically extract todos, review requests, and deadlines from all your connected services
 - **Priority Scoring**: Items ranked by urgency, sender importance, and deadline proximity
 - **Unified Timeline**: One view across GitHub, Calendar, Email, News, and more
-- **Smart Notifications**: Configurable rules -- get notified about what matters, silence what doesn't
+- **Smart Notifications**: Configurable rules engine -- route events to notify, digest, or silence. Slack/Discord webhooks and email digests
 - **Web Dashboard**: Clean, dark-mode-first interface for your command center
-- **CLI**: `beacon brief`, `beacon actions`, `beacon focus` -- everything from the terminal
+- **CLI**: `beacon brief`, `beacon actions`, `beacon focus`, `beacon notify`, `beacon digest` -- everything from the terminal
+- **Advanced Intelligence**: Weekly retrospectives, meeting prep, relationship tracking, time audits, trend detection
 
 ## Quickstart
 
@@ -42,13 +47,15 @@ beacon/
   src/
     models.py          # Core data models
     config.py          # Configuration system
-    cli.py             # CLI framework
-    connectors/        # Source connectors (GitHub, Calendar, Email, etc.)
-    intelligence/      # Briefing generator, priority scorer, pattern analyzer
-    web/               # FastAPI dashboard
-  tests/
-  beacon.toml            # Configuration
-  ROADMAP.md
+    cli.py             # CLI framework (12 commands)
+    connectors/        # Source connectors (GitHub, Calendar, Email, Weather, News, HN)
+    intelligence/      # Briefing generator, priority scorer, conflict detector, pattern analyzer
+    notifications/     # Rules engine, digest compiler, webhooks (Slack/Discord), email sender, silence
+    web/               # FastAPI dashboard with Jinja2 templates
+    advanced/          # Retrospective, meeting prep, relationships, time audit, trends, export, API
+  tests/               # 537+ tests
+  beacon.toml          # Configuration
+  ROADMAP.md           # All 6 phases complete
   SESSION_LOG.md
   .github/
     BEACON_RULES.md
