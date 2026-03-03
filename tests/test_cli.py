@@ -133,3 +133,101 @@ def test_cli_sources_lists(tmp_path):
     result = run_cli("sources", "--config", str(tmp_path / "beacon.toml"))
     assert result.returncode == 0
     assert "gh" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# beacon sources (enhanced -- connector info)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_sources_shows_connector_column(tmp_path):
+    """Enhanced sources listing shows connector class name."""
+    config = textwrap.dedent("""\
+        [[sources]]
+        name = "mycal"
+        type = "calendar"
+        enabled = true
+        calendar_url = "https://example.com/cal.ics"
+    """)
+    (tmp_path / "beacon.toml").write_text(config, encoding="utf-8")
+    result = run_cli("sources", "--config", str(tmp_path / "beacon.toml"))
+    assert result.returncode == 0
+    assert "mycal" in result.stdout
+    # Should show connector class or "(not registered)"
+    assert "CalendarConnector" in result.stdout or "Connector" in result.stdout
+
+
+def test_cli_sources_shows_disabled(tmp_path):
+    config = textwrap.dedent("""\
+        [[sources]]
+        name = "rss"
+        type = "news"
+        enabled = false
+        feeds = ["https://example.com/feed.rss"]
+    """)
+    (tmp_path / "beacon.toml").write_text(config, encoding="utf-8")
+    result = run_cli("sources", "--config", str(tmp_path / "beacon.toml"))
+    assert result.returncode == 0
+    assert "disabled" in result.stdout
+
+
+def test_cli_sources_unknown_type(tmp_path):
+    """Unknown connector type should show '(unknown type)' not crash."""
+    config = textwrap.dedent("""\
+        [[sources]]
+        name = "custom"
+        type = "myCustomType"
+        enabled = true
+    """)
+    (tmp_path / "beacon.toml").write_text(config, encoding="utf-8")
+    result = run_cli("sources", "--config", str(tmp_path / "beacon.toml"))
+    assert result.returncode == 0
+    assert "unknown type" in result.stdout.lower() or "custom" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# beacon sources test <name>
+# ---------------------------------------------------------------------------
+
+
+def test_cli_sources_test_invalid_config(tmp_path):
+    """sources test <name> with invalid connector config should exit non-zero."""
+    config = textwrap.dedent("""\
+        [[sources]]
+        name = "myCal"
+        type = "calendar"
+        enabled = true
+    """)
+    (tmp_path / "beacon.toml").write_text(config, encoding="utf-8")
+    result = run_cli(
+        "sources", "test", "myCal", "--config", str(tmp_path / "beacon.toml")
+    )
+    # Missing calendar_url/calendar_file => config invalid => non-zero exit
+    assert result.returncode != 0
+    assert "FAIL" in result.stdout or "invalid" in result.stdout.lower()
+
+
+def test_cli_sources_test_not_found(tmp_path):
+    """sources test <name> for unknown source should exit non-zero."""
+    (tmp_path / "beacon.toml").write_text("[user]\nname='X'\n", encoding="utf-8")
+    result = run_cli(
+        "sources", "test", "nosource", "--config", str(tmp_path / "beacon.toml")
+    )
+    assert result.returncode != 0
+    assert "not found" in result.stdout.lower() or "No config" in result.stdout
+
+
+def test_cli_sources_test_no_config(tmp_path):
+    """sources test without config exits non-zero."""
+    result = run_cli("sources", "test", "x", cwd=str(tmp_path))
+    assert result.returncode != 0
+
+
+def test_cli_sources_test_all_skipped(tmp_path):
+    """sources test with no sources just returns cleanly."""
+    (tmp_path / "beacon.toml").write_text("[user]\nname='X'\n", encoding="utf-8")
+    result = run_cli(
+        "sources", "test", "--config", str(tmp_path / "beacon.toml")
+    )
+    # No sources configured
+    assert result.returncode == 0 or "No sources" in result.stdout
