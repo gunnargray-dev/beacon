@@ -403,6 +403,157 @@ def cmd_focus(args: argparse.Namespace) -> None:
         print()
 
 
+def _load_sync_cache() -> dict:
+    """Load ~/.cache/beacon/last_sync.json or return empty cache."""
+    import json
+    from pathlib import Path
+
+    cache_file = Path.home() / ".cache" / "beacon" / "last_sync.json"
+    if not cache_file.exists():
+        return {"events": [], "action_items": []}
+    try:
+        return json.loads(cache_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"events": [], "action_items": []}
+
+
+def cmd_notify(args: argparse.Namespace) -> None:
+    """Send a test notification via configured webhook or email."""
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        print(f"Error loading config: {exc}")
+        sys.exit(1)
+
+    raw = config.raw
+
+    from src.notifications.digest import compile_digest
+    from src.notifications.silence import load_silence_config
+    from src.notifications.webhooks import WebhookError, load_webhook_config, send_webhook
+    from src.notifications.email_digest import EmailError, load_email_config, send_email_digest
+
+    silence_cfg = load_silence_config(raw)
+    if silence_cfg.is_silenced():
+        print("Notifications are currently silenced (focus/quiet hours).")
+        if not getattr(args, "force", False):
+            print("Use --force to send anyway.")
+            sys.exit(0)
+
+    cache = _load_sync_cache()
+    events = cache.get("events", [])
+    action_items = cache.get("action_items", [])
+    digest = compile_digest(events, action_items, window="all", max_events=5, max_actions=5)
+
+    title = "Beacon Test Notification"
+    body = f"Events: {len(digest.events)}, Actions: {len(digest.action_items)}"
+    items = digest.action_items[:5] + digest.events[:3]
+
+    sent_any = False
+
+    wh_cfg = load_webhook_config(raw)
+    if wh_cfg:
+        print(f"Sending test webhook to {wh_cfg.platform} ...", end=" ", flush=True)
+        try:
+            send_webhook(wh_cfg, title, body, items)
+            print("OK")
+            sent_any = True
+        except WebhookError as exc:
+            print(f"FAIL -- {exc}")
+
+    email_cfg = load_email_config(raw)
+    if email_cfg:
+        print(f"Sending test email to {email_cfg.to_addr} ...", end=" ", flush=True)
+        try:
+            send_email_digest(digest, email_cfg)
+            print("OK")
+            sent_any = True
+        except EmailError as exc:
+            print(f"FAIL -- {exc}")
+
+    if not sent_any:
+        print("No notification channels configured.")
+        print("  Add [notifications.webhook] or [notifications.email] to beacon.toml")
+
+
+def cmd_digest(args: argparse.Namespace) -> None:
+    """Compile and send a digest of current events and action items."""
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        print(f"Error loading config: {exc}")
+        sys.exit(1)
+
+    raw = config.raw
+
+    from src.notifications.digest import compile_digest
+    from src.notifications.silence import load_silence_config
+    from src.notifications.webhooks import WebhookError, load_webhook_config, send_webhook
+    from src.notifications.email_digest import EmailError, load_email_config, send_email_digest
+
+    silence_cfg = load_silence_config(raw)
+    if silence_cfg.is_silenced():
+        print("Notifications are currently silenced (focus/quiet hours).")
+        if not getattr(args, "force", False):
+            print("Use --force to send anyway.")
+            sys.exit(0)
+
+    window = getattr(args, "window", "all") or "all"
+    cache = _load_sync_cache()
+    events = cache.get("events", [])
+    action_items = cache.get("action_items", [])
+    digest = compile_digest(events, action_items, window=window)
+
+    output_fmt = getattr(args, "output", None)
+    if output_fmt == "text":
+        print(digest.as_text())
+        return
+    if output_fmt == "html":
+        print(digest.as_html())
+        return
+
+    # Send via configured channels
+    title = f"Beacon {window.title()} Digest"
+    body = digest.as_text()[:500]
+    items_combined = digest.action_items + digest.events
+
+    sent_any = False
+
+    wh_cfg = load_webhook_config(raw)
+    if wh_cfg:
+        print(f"Sending digest via {wh_cfg.platform} webhook ...", end=" ", flush=True)
+        try:
+            send_webhook(wh_cfg, title, body, items_combined)
+            print("OK")
+            sent_any = True
+        except WebhookError as exc:
+            print(f"FAIL -- {exc}")
+
+    email_cfg = load_email_config(raw)
+    if email_cfg:
+        print(f"Sending digest email to {email_cfg.to_addr} ...", end=" ", flush=True)
+        try:
+            send_email_digest(digest, email_cfg)
+            print("OK")
+            sent_any = True
+        except EmailError as exc:
+            print(f"FAIL -- {exc}")
+
+    if not sent_any:
+        print("No notification channels configured \u2014 printing digest to stdout.")
+        print()
+        print(digest.as_text())
+
+
 def cmd_dashboard(args: argparse.Namespace) -> None:
     """Start the Beacon web dashboard."""
     try:
@@ -436,7 +587,7 @@ def cmd_dashboard(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="beacon",
-        description="Your personal ops agent -- unified briefings, action items, and smart notifications.",
+        description="Your personal ops agent \u2014 unified briefings, action items, and smart notifications.",
     )
     parser.add_argument(
         "--version",
@@ -498,6 +649,30 @@ def build_parser() -> argparse.ArgumentParser:
     sub_focus.add_argument("-n", "--count", type=int, default=3, help="Number of items to show (default: 3)")
     sub_focus.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
     sub_focus.set_defaults(func=cmd_focus)
+
+    # notify
+    sub_notify = subparsers.add_parser("notify", help="Send a test notification")
+    sub_notify.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_notify.add_argument("--force", action="store_true", help="Send even during silence hours")
+    sub_notify.set_defaults(func=cmd_notify)
+
+    # digest
+    sub_digest = subparsers.add_parser("digest", help="Compile and send a digest")
+    sub_digest.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_digest.add_argument(
+        "--window",
+        choices=["morning", "evening", "all"],
+        default="all",
+        help="Time window for events (default: all)",
+    )
+    sub_digest.add_argument(
+        "--output",
+        choices=["text", "html"],
+        default=None,
+        help="Print digest to stdout instead of sending (text or html)",
+    )
+    sub_digest.add_argument("--force", action="store_true", help="Send even during silence hours")
+    sub_digest.set_defaults(func=cmd_digest)
 
     # dashboard
     sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
