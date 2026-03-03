@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Beacon{% endblock %}
+{% block content %}
+<div class="landing">
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">personal ops agent</div>
+      <h1 class="hero-title"><span class="hero-icon">◉</span> beacon</h1>
+      <p class="hero-tagline">unified briefings · action items · smart notifications<br>all your tools, one terminal-native dashboard</p>
+      <div class="hero-actions">
+        <a href="/dashboard" class="btn btn-primary">open dashboard</a>
+        <a href="/briefing" class="btn btn-ghost">today's briefing</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <h2 class="section-title">connectors</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⌥</div>
+        <div class="feature-title">GitHub</div>
+        <div class="feature-desc">Notifications, review requests, assigned issues, and recent commits — no browser needed.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">◈</div>
+        <div class="feature-title">Calendar</div>
+        <div class="feature-desc">Upcoming events and meetings pulled from your calendars with day/week layout.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">◉</div>
+        <div class="feature-title">Email</div>
+        <div class="feature-desc">Important threads surfaced via IMAP. See what matters without opening your inbox.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">◎</div>
+        <div class="feature-title">Weather</div>
+        <div class="feature-desc">Current conditions and 3-day forecast via wttr.in. No API key required.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">◆</div>
+        <div class="feature-title">News &amp; RSS</div>
+        <div class="feature-desc">Curated articles from any RSS/Atom feed. Keyword filtering included.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">▲</div>
+        <div class="feature-title">Hacker News</div>
+        <div class="feature-desc">Top stories filtered by score and keywords. Zero noise, maximum signal.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="views-list">
+    <h2 class="section-title">views</h2>
+    <div class="views-grid">
+      <a href="/dashboard" class="view-card">
+        <div class="view-name">dashboard</div>
+        <div class="view-desc">Unified timeline and pending action items across all sources.</div>
+      </a>
+      <a href="/briefing" class="view-card">
+        <div class="view-name">briefing</div>
+        <div class="view-desc">Daily digest grouped by source type, with urgent items surfaced first.</div>
+      </a>
+      <a href="/calendar" class="view-card">
+        <div class="view-name">calendar</div>
+        <div class="view-desc">11-day sliding window calendar view with events from all sources.</div>
+      </a>
+      <a href="/sources" class="view-card">
+        <div class="view-name">sources</div>
+        <div class="view-desc">Source health cards with event counts and last-seen timestamps.</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="quickstart">
+    <h2 class="section-title">quickstart</h2>
+    <div class="code-block">
+      <div class="code-line"><span class="prompt">$</span> pip install beacon</div>
+      <div class="code-line"><span class="prompt">$</span> beacon init<span class="comment">           # create ~/.config/beacon/beacon.toml</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon sources test<span class="comment">    # verify connections</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon sync<span class="comment">            # pull data from all sources</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon dashboard<span class="comment">       # start this dashboard</span></div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

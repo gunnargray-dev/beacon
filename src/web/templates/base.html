@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Beacon{% endblock %} — Personal Ops Agent</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◉</text></svg>">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">
+        <span class="brand-icon">◉</span>
+        <span class="brand-name">beacon</span>
+      </a>
+      <div class="nav-links">
+        <a href="/dashboard" class="nav-link {% if request.url.path == '/dashboard' %}active{% endif %}">dashboard</a>
+        <a href="/briefing"  class="nav-link {% if request.url.path == '/briefing' %}active{% endif %}">briefing</a>
+        <a href="/calendar"  class="nav-link {% if request.url.path == '/calendar' %}active{% endif %}">calendar</a>
+        <a href="/sources"   class="nav-link {% if request.url.path == '/sources' %}active{% endif %}">sources</a>
+        <a href="/settings"  class="nav-link {% if request.url.path == '/settings' %}active{% endif %}">settings</a>
+      </div>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark/light mode" title="Toggle theme">
+        <span id="themeIcon">☽</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="footer-brand">beacon v0.1.0</span>
+      <span class="footer-sep">·</span>
+      <span class="footer-time" id="footerTime"></span>
+      {% if synced_at is defined %}
+      <span class="footer-sep">·</span>
+      <span class="footer-sync">last sync: {{ synced_at }}</span>
+      {% endif %}
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

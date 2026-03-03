@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">settings</h1>
+</div>
+
+<div class="settings-layout">
+
+  {% if config.path %}
+  <div class="config-path">
+    <span class="config-path-label">config</span>
+    <span class="config-path-value">{{ config.path }}</span>
+  </div>
+  {% endif %}
+
+  {% if config.raw and config.raw.sources %}
+  <div class="dash-section">
+    <div class="section-label">sources</div>
+    <div class="sources-config-list">
+      {% for src in config.raw.sources %}
+      <div class="source-config-card">
+        <div class="source-config-header">
+          <span class="source-config-name">{{ src.name }}</span>
+          <span class="tag source-config-type">{{ src.type }}</span>
+          <span class="tag {% if src.get('enabled', true) %}tag-enabled{% else %}tag-disabled{% endif %}">
+            {{ "enabled" if src.get("enabled", true) else "disabled" }}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if config.raw and config.raw.user %}
+  <div class="dash-section">
+    <div class="section-label">user preferences</div>
+    <div class="kv-list">
+      {% for key, val in config.raw.user.items() %}
+      <div class="kv-row">
+        <span class="kv-key">{{ key }}</span>
+        <span class="kv-val {% if 'token' in key or 'password' in key or 'secret' in key %}kv-secret{% endif %}">
+          {% if 'token' in key or 'password' in key or 'secret' in key %}••••••••
+          {% else %}{{ val }}{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not config.path %}
+  <div class="empty-state">
+    <div class="empty-icon">◇</div>
+    <div class="empty-title">No configuration found</div>
+    <div class="empty-desc">Run <code>beacon init</code> to create <code>beacon.toml</code> at <code>~/.config/beacon/beacon.toml</code>.</div>
+  </div>
+  {% endif %}
+
+  <div class="dash-section">
+    <div class="section-label">cli reference</div>
+    <div class="code-block">
+      <div class="code-line"><span class="prompt">$</span> beacon init<span class="comment">           # create default config</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon sources<span class="comment">         # list configured sources</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon sources test<span class="comment">    # test all connections</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon sync<span class="comment">            # sync all enabled sources</span></div>
+      <div class="code-line"><span class="prompt">$</span> beacon dashboard<span class="comment">       # start web dashboard</span></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

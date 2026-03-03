@@ -1,0 +1,1 @@
+"""Beacon web dashboard package."""

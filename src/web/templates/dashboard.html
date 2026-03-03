@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">dashboard</h1>
+  <div class="page-meta">
+    <span class="meta-item">{{ total_events }} events</span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item">{{ action_items|length }} pending actions</span>
+    {% if urgent_count > 0 %}
+    <span class="meta-sep">·</span>
+    <span class="meta-item urgent">{{ urgent_count }} urgent</span>
+    {% endif %}
+    <span class="meta-sep">·</span>
+    <span class="meta-item muted">{{ synced_at }}</span>
+  </div>
+</div>
+
+<!-- Action items -->
+{% if action_items %}
+<div class="dash-section">
+  <div class="section-label {% if urgent_count > 0 %}urgent-label{% endif %}">action items</div>
+  <ul class="action-list">
+    {% for action in action_items[:10] %}
+    <li class="action-item priority-{{ action.priority }}">
+      <span class="action-priority">{{ action.priority }}</span>
+      <div class="action-body">
+        <div class="action-title">
+          {% if action.url %}<a href="{{ action.url }}" target="_blank" rel="noopener">{{ action.title }}</a>
+          {% else %}{{ action.title }}{% endif %}
+        </div>
+        {% if action.notes %}<div class="action-notes">{{ action.notes }}</div>{% endif %}
+        <div class="action-meta">
+          <span>{{ action.source_type }}</span>
+          {% if action.due_at %}<span class="action-due">due {{ action.due_at[:10] }}</span>{% endif %}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+    {% if action_items|length > 10 %}
+    <li class="more-items">+{{ action_items|length - 10 }} more</li>
+    {% endif %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Events timeline -->
+<div class="dash-section">
+  <div class="section-label">timeline</div>
+  {% if events %}
+  <div class="timeline">
+    {% for event in events %}
+    <div class="timeline-item">
+      <span class="timeline-source">{{ source_icon(event.source_type) }}</span>
+      <div class="timeline-body">
+        <div class="timeline-title">
+          {% if event.url %}<a href="{{ event.url }}" target="_blank" rel="noopener">{{ event.title }}</a>
+          {% else %}{{ event.title }}{% endif %}
+        </div>
+        {% if event.summary %}<div class="timeline-summary">{{ event.summary }}</div>{% endif %}
+        <div class="timeline-meta">
+          <span class="timeline-type">{{ event.source_type }}</span>
+          {% if event.occurred_at %}<span class="timeline-time">{{ event.occurred_at[:10] }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">◎</div>
+    <div class="empty-title">No events yet</div>
+    <div class="empty-desc">Run <code>beacon sync</code> to fetch data from your sources.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

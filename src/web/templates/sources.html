@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Sources{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">sources</h1>
+  <div class="page-meta">
+    <span class="meta-item">{{ sources|length }} source{% if sources|length != 1 %}s{% endif %}</span>
+    <span class="meta-sep">·</span>
+    <span class="meta-item muted">{{ synced_at }}</span>
+  </div>
+</div>
+
+{% if sources %}
+<div class="sources-grid">
+  {% for src in sources %}
+  <div class="source-card">
+    <div class="source-header">
+      <span class="source-icon">{{ src.icon }}</span>
+      <div class="source-info">
+        <div class="source-name">{{ src.id }}</div>
+        <div class="source-type">{{ src.type.replace("_", " ") }}</div>
+      </div>
+      <span class="status-dot status-ok" title="data received"></span>
+    </div>
+    <div class="source-stats">
+      <div class="stat">
+        <div class="stat-value">{{ src.event_count }}</div>
+        <div class="stat-label">events</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ src.action_count }}</div>
+        <div class="stat-label">actions</div>
+      </div>
+      {% if src.latest %}
+      <div class="stat">
+        <div class="stat-value" style="font-size:.78rem;">{{ src.latest[:10] }}</div>
+        <div class="stat-label">latest</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">◎</div>
+  <div class="empty-title">No source data available</div>
+  <div class="empty-desc">Run <code>beacon sync</code> to pull data from your configured sources.</div>
+</div>
+{% endif %}
+{% endblock %}
