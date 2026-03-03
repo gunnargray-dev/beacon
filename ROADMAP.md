@@ -4,13 +4,13 @@
 
 ## Phase 1 -- Foundation (Sessions 1-4)
 
-- [ ] Core data models: User, Source, Event, ActionItem, Briefing
-- [ ] Plugin architecture: base connector class with register/discover/load pattern
-- [ ] Configuration system: beacon.toml with per-source credentials and preferences
-- [ ] CLI framework: `beacon` command with subcommand routing
-- [ ] `beacon status` -- show connected sources, last sync time, pending action items
-- [ ] Test framework: pytest with fixtures, >90% coverage target
-- [ ] CI pipeline: GitHub Actions on Python 3.11/3.12
+- [x] Core data models: User, Source, Event, ActionItem, Briefing
+- [x] Plugin architecture: base connector class with register/discover/load pattern
+- [x] Configuration system: beacon.toml with per-source credentials and preferences
+- [x] CLI framework: `beacon` command with subcommand routing
+- [x] `beacon status` -- show connected sources, last sync time, pending action items
+- [x] Test framework: pytest with fixtures, >90% coverage target
+- [x] CI pipeline: GitHub Actions on Python 3.11/3.12
 
 ## Phase 2 -- Connectors (Sessions 5-10)
 
