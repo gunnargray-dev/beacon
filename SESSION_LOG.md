@@ -105,3 +105,15 @@
 **Stats**: 540+ tests passing, 14 CLI commands live, Phase 7 started
 
 ---
+
+## Session 6 -- 2026-03-03
+
+**PR**: [#10 Session 6: Web dashboard reads from SQLite store (fallback to sync cache)](https://github.com/gunnargray-dev/beacon/pull/10)
+
+**Completed**:
+- `src/web/data.py` -- centralize dashboard data loading: prefer SQLite store if `~/.cache/beacon/beacon.db` exists (or `BEACON_DB` env var), else fall back to sync cache
+- `src/web/routes.py` -- updated web + API routes to use store-backed loader while preserving backwards-compatible `_CACHE_FILE`/`_load_cache` patch points for tests
+
+**Stats**: 540+ tests passing, Phase 7 complete
+
+---
