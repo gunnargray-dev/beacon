@@ -305,6 +305,104 @@ def cmd_sync(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_brief(args: argparse.Namespace) -> None:
+    """Generate and display today's briefing."""
+    from pathlib import Path
+
+    from src.intelligence.briefing import BriefingGenerator
+
+    sync_path = getattr(args, "sync_file", None)
+    if sync_path:
+        sync_path = Path(sync_path)
+
+    gen = BriefingGenerator(sync_path=sync_path)
+    briefing = gen.generate()
+
+    if not briefing.events and not briefing.action_items:
+        print("No data available. Run 'beacon sync' first.")
+        return
+
+    print(gen.format_text(briefing))
+
+
+def cmd_actions(args: argparse.Namespace) -> None:
+    """List prioritized action items across all sources."""
+    import json
+    from pathlib import Path
+
+    from src.intelligence.actions import ActionExtractor
+    from src.intelligence.briefing import BriefingGenerator, _load_sync_data, _action_from_dict, _event_from_dict
+    from src.intelligence.priority import PriorityScorer
+
+    sync_path = getattr(args, "sync_file", None)
+    if sync_path:
+        sync_path = Path(sync_path)
+
+    data = _load_sync_data(sync_path)
+    events = [_event_from_dict(e) for e in data.get("events", [])]
+    existing_actions = [_action_from_dict(a) for a in data.get("action_items", [])]
+
+    extractor = ActionExtractor()
+    extracted = extractor.extract(events, existing_actions=existing_actions)
+    all_actions = existing_actions + extracted
+
+    if not all_actions:
+        print("No action items found. Run 'beacon sync' first.")
+        return
+
+    scorer = PriorityScorer()
+    ranked = scorer.rank([a for a in all_actions if not a.completed])
+
+    print(f"=== Action Items ({len(ranked)} pending) ===")
+    print()
+    from src.models import Priority
+
+    for item, score in ranked:
+        marker = "!" if item.priority in (Priority.HIGH, Priority.URGENT) else " "
+        print(f"  [{marker}] [{item.priority.value:<6}] (score: {score:>6.1f})  {item.title}")
+
+
+def cmd_focus(args: argparse.Namespace) -> None:
+    """Show a distraction-free view of today's top 3 priorities."""
+    import json
+    from pathlib import Path
+
+    from src.intelligence.actions import ActionExtractor
+    from src.intelligence.briefing import _load_sync_data, _action_from_dict, _event_from_dict
+    from src.intelligence.priority import PriorityScorer
+
+    sync_path = getattr(args, "sync_file", None)
+    if sync_path:
+        sync_path = Path(sync_path)
+
+    data = _load_sync_data(sync_path)
+    events = [_event_from_dict(e) for e in data.get("events", [])]
+    existing_actions = [_action_from_dict(a) for a in data.get("action_items", [])]
+
+    extractor = ActionExtractor()
+    extracted = extractor.extract(events, existing_actions=existing_actions)
+    all_actions = existing_actions + extracted
+
+    pending = [a for a in all_actions if not a.completed]
+
+    if not pending:
+        print("Nothing to focus on. Your plate is clear.")
+        return
+
+    count = getattr(args, "count", 3) or 3
+    scorer = PriorityScorer()
+    top = scorer.top_n(pending, n=count)
+
+    print(f"=== Focus Mode -- Top {len(top)} ===\n")
+    for i, item in enumerate(top, 1):
+        print(f"  {i}. {item.title}")
+        if item.due_at:
+            print(f"     Due: {item.due_at.strftime('%Y-%m-%d %H:%M')}")
+        if item.url:
+            print(f"     URL: {item.url}")
+        print()
+
+
 def cmd_dashboard(args: argparse.Namespace) -> None:
     """Start the Beacon web dashboard."""
     try:
@@ -384,6 +482,22 @@ def build_parser() -> argparse.ArgumentParser:
     sub_sync = subparsers.add_parser("sync", help="Sync all enabled sources")
     sub_sync.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
     sub_sync.set_defaults(func=cmd_sync)
+
+    # brief
+    sub_brief = subparsers.add_parser("brief", help="Generate and display today's briefing")
+    sub_brief.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
+    sub_brief.set_defaults(func=cmd_brief)
+
+    # actions
+    sub_actions = subparsers.add_parser("actions", help="List prioritized action items")
+    sub_actions.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
+    sub_actions.set_defaults(func=cmd_actions)
+
+    # focus
+    sub_focus = subparsers.add_parser("focus", help="Distraction-free view of top priorities")
+    sub_focus.add_argument("-n", "--count", type=int, default=3, help="Number of items to show (default: 3)")
+    sub_focus.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
+    sub_focus.set_defaults(func=cmd_focus)
 
     # dashboard
     sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
