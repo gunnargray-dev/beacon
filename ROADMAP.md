@@ -68,7 +68,7 @@
 
 ## Phase 7 -- Persistence & Query (Sessions 33+)
 
-- [ ] Persistent local store: SQLite-backed event/action storage (no more ephemeral sync cache)
-- [ ] `beacon ingest` -- import the latest sync cache into the local store (dedupe by event/action id)
-- [ ] `beacon query` -- basic query/filter of events and action items (by source, date range, priority, completion)
+- [x] Persistent local store: SQLite-backed event/action storage (no more ephemeral sync cache)
+- [x] `beacon ingest` -- import the latest sync cache into the local store (dedupe by event/action id)
+- [x] `beacon query` -- basic query/filter of events and action items (by source, date range, priority, completion)
 - [ ] Web dashboard: read from the store when available (fallback to sync cache)
