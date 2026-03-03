@@ -89,3 +89,19 @@
 **Stats**: 537+ tests passing, all 6 phases complete, 12 CLI commands live, full roadmap shipped
 
 ---
+
+## Session 5 -- 2026-03-03
+
+**PR**: [#9 Session 5: Phase 7 persistence — SQLite store + ingest/query CLI](https://github.com/gunnargray-dev/beacon/pull/9)
+
+**Completed**:
+- Added Phase 7 roadmap for persistence + query
+- `src/store.py` -- SQLite-backed persistent store for events and action items (stdlib-only) with upsert + basic filtering
+- `src/ingest.py` -- ingest helper to import the sync cache JSON into the store
+- `src/cli.py` -- added `beacon ingest` and `beacon query` commands
+- `tests/test_store.py`, `tests/test_ingest.py` -- unit tests for store + ingestion
+- `tests/conftest.py` -- ensure CLI subprocess tests can import `src` from temporary working directories
+
+**Stats**: 540+ tests passing, 14 CLI commands live, Phase 7 started
+
+---
