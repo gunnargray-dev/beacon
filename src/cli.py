@@ -654,9 +654,15 @@ def cmd_dashboard(args: argparse.Namespace) -> None:
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
-# ---------------------------------------------------------------------------
-# Argument parser
-# ---------------------------------------------------------------------------
+def cmd_db(args: argparse.Namespace) -> None:
+    """Print Beacon store DB path + basic counts."""
+
+    from src.db_cli import cmd_db as _cmd_db
+
+    db_path = getattr(args, "db", None)
+    code = _cmd_db(db_path)
+    if code:
+        sys.exit(code)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -783,6 +789,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub_query.add_argument("--since", default=None, help="Events since ISO datetime")
     sub_query.add_argument("--until", default=None, help="Events until ISO datetime")
     sub_query.set_defaults(func=cmd_query)
+
+    # db
+    sub_db = subparsers.add_parser("db", help="Show store DB path and basic counts")
+    sub_db.add_argument(
+        "--db",
+        metavar="PATH",
+        default=None,
+        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
+    )
+    sub_db.set_defaults(func=cmd_db)
 
     # dashboard
     sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
