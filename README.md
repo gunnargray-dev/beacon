@@ -10,15 +10,15 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 8 |
-| PRs merged | 12 |
+| Sessions | 9 |
+| PRs merged | 13 |
 | Source modules | 7 |
 | Intelligence modules | 5 |
 | Notification modules | 5 |
 | Advanced modules | 8 |
 | Tests passing | 540+ |
 | CLI commands | 15 |
-| Roadmap phases complete | 6/6 + Phase 7 |
+| Roadmap phases complete | 6/6 + Phase 8 |
 
 ## What It Does
 
@@ -53,7 +53,7 @@ beacon/
     notifications/     # Rules engine, digest compiler, webhooks (Slack/Discord), email sender, silence
     web/               # FastAPI dashboard with Jinja2 templates
     advanced/          # Retrospective, meeting prep, relationships, time audit, trends, export, API
-  tests/               # 537+ tests
+  tests/               # 540+ tests
   beacon.toml          # Configuration
   ROADMAP.md           # All 6 phases complete
   SESSION_LOG.md
