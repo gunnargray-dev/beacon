@@ -10,15 +10,15 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 12 |
-| PRs merged | 16 |
+| Sessions | 13 |
+| PRs merged | 17 |
 | Source modules | 7 |
 | Intelligence modules | 5 |
 | Notification modules | 5 |
 | Advanced modules | 8 |
-| Tests passing | 677 |
-| CLI commands | 17 |
-| Roadmap phases complete | 8/8 + Phase 9 started |
+| Tests passing | 683 |
+| CLI commands | 18 |
+| Roadmap phases complete | 8/8 + Phase 9 in progress |
 
 ## What It Does
 
@@ -28,7 +28,7 @@
 - **Unified Timeline**: One view across GitHub, Calendar, Email, News, and more
 - **Smart Notifications**: Configurable rules engine -- route events to notify, digest, or silence. Slack/Discord webhooks and email digests
 - **Web Dashboard**: Clean, dark-mode-first interface for your command center
-- **CLI**: `beacon brief`, `beacon actions`, `beacon focus`, `beacon export`, `beacon health` -- everything from the terminal
+- **CLI**: `beacon brief`, `beacon actions`, `beacon focus`, `beacon export`, `beacon health`, `beacon check` -- everything from the terminal
 - **Advanced Intelligence**: Weekly retrospectives, meeting prep, relationship tracking, time audits, trend detection
 - **Health Diagnostics**: Built-in health checks for config, store, sync cache, and sources
 
@@ -48,7 +48,7 @@ beacon/
   src/
     models.py          # Core data models
     config.py          # Configuration system
-    cli.py             # CLI framework (17 commands)
+    cli.py             # CLI framework (18 commands)
     health.py          # Health diagnostics
     connectors/        # Source connectors (GitHub, Calendar, Email, Weather, News, HN)
     intelligence/      # Briefing generator, priority scorer, conflict detector, pattern analyzer
@@ -56,7 +56,7 @@ beacon/
     web/               # FastAPI dashboard with Jinja2 templates
     advanced/          # Retrospective, meeting prep, relationships, time audit, trends, export, API
     store_export/      # Store-backed export to JSON/HTML/PDF
-  tests/               # 677 tests
+  tests/               # 683 tests
   beacon.toml          # Configuration
   ROADMAP.md           # Phases 1-8 complete, Phase 9 in progress
   SESSION_LOG.md
