@@ -310,6 +310,153 @@ def cmd_sync(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_sync_daemon(args: argparse.Namespace) -> None:
+    """Run beacon sync repeatedly on an interval (cron-friendly daemon mode)."""
+    from datetime import datetime, timezone
+    from pathlib import Path
+    import time
+
+    interval = int(getattr(args, "interval", 300))
+    if interval < 5:
+        print("Error: --interval must be >= 5 seconds")
+        sys.exit(2)
+
+    max_runs_raw = getattr(args, "max_runs", None)
+    max_runs = int(max_runs_raw) if max_runs_raw is not None else None
+    if max_runs is not None and max_runs < 1:
+        print("Error: --max-runs must be >= 1")
+        sys.exit(2)
+
+    once = bool(getattr(args, "once", False))
+    show_times = bool(getattr(args, "show_times", False))
+
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    _load_connector_registry()
+
+    from src.connectors.base import ConnectorError, registry as connector_registry
+    from src.models import Source, SourceType
+
+    run = 0
+    while True:
+        run += 1
+        started = datetime.now(tz=timezone.utc)
+        if show_times:
+            print(f"\n=== beacon sync --daemon run {run} @ {started.isoformat()} ===")
+
+        try:
+            config = load_config(config_path)
+        except ConfigError as exc:
+            print(f"Error loading config: {exc}")
+            sys.exit(1)
+
+        enabled = config.enabled_sources()
+        if not enabled:
+            print("No enabled sources configured.")
+            return
+
+        all_events: list[dict] = []
+        all_action_items: list[dict] = []
+        any_error = False
+
+        for src_cfg in enabled:
+            print(f"Syncing {src_cfg.name!r} ({src_cfg.type}) ...", end=" ", flush=True)
+            try:
+                src_type = SourceType(src_cfg.type)
+            except ValueError:
+                print(f"SKIP -- unknown type {src_cfg.type!r}")
+                continue
+
+            connector_cls = connector_registry.get(src_type)
+            if connector_cls is None:
+                print(f"SKIP -- no connector registered for {src_cfg.type!r}")
+                continue
+
+            source = Source(
+                name=src_cfg.name,
+                source_type=src_type,
+                enabled=src_cfg.enabled,
+                config=src_cfg.config,
+            )
+            connector = connector_cls(source)
+
+            if not connector.validate_config():
+                print(f"SKIP -- config invalid for {connector_cls.__name__}")
+                continue
+
+            try:
+                events, action_items = connector.sync()
+                print(f"done ({len(events)} events, {len(action_items)} action items)")
+                for ev in events:
+                    all_events.append(
+                        {
+                            "id": ev.id,
+                            "title": ev.title,
+                            "source_id": ev.source_id,
+                            "source_type": ev.source_type.value,
+                            "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+                            "summary": ev.summary,
+                            "url": ev.url,
+                            "metadata": ev.metadata,
+                        }
+                    )
+                for ai in action_items:
+                    all_action_items.append(
+                        {
+                            "id": ai.id,
+                            "title": ai.title,
+                            "source_id": ai.source_id,
+                            "source_type": ai.source_type.value,
+                            "priority": ai.priority.value,
+                            "due_at": ai.due_at.isoformat() if ai.due_at else None,
+                            "url": ai.url,
+                            "completed": ai.completed,
+                            "notes": ai.notes,
+                            "metadata": ai.metadata,
+                        }
+                    )
+            except ConnectorError as exc:
+                print(f"ERROR -- {exc}")
+                any_error = True
+
+        cache_dir = Path.home() / ".cache" / "beacon"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = cache_dir / "last_sync.json"
+
+        payload = {
+            "synced_at": datetime.now(tz=timezone.utc).isoformat(),
+            "events": all_events,
+            "action_items": all_action_items,
+        }
+        cache_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+        print()
+        print(f"Sync complete: {len(all_events)} events, {len(all_action_items)} action items")
+        print(f"Cached to: {cache_file}")
+
+        if once:
+            if any_error:
+                sys.exit(1)
+            return
+
+        if max_runs is not None and run >= max_runs:
+            if any_error:
+                sys.exit(1)
+            return
+
+        if any_error and getattr(args, "stop_on_error", False):
+            sys.exit(1)
+
+        elapsed = (datetime.now(tz=timezone.utc) - started).total_seconds()
+        sleep_for = max(0.0, float(interval) - elapsed)
+        if show_times:
+            print(f"Sleeping {sleep_for:.1f}s (interval={interval}s)")
+        time.sleep(sleep_for)
+
+
 def cmd_brief(args: argparse.Namespace) -> None:
     """Generate and display today's briefing."""
     from pathlib import Path
@@ -767,8 +914,43 @@ def build_parser() -> argparse.ArgumentParser:
     # sync
     sub_sync = subparsers.add_parser("sync", help="Sync all enabled sources")
     sub_sync.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_sync.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Run sync repeatedly on an interval (use with --interval)",
+    )
+    sub_sync.add_argument(
+        "--interval",
+        type=int,
+        default=300,
+        help="Interval between sync runs in seconds when --daemon is set (default: 300)",
+    )
+    sub_sync.add_argument(
+        "--max-runs",
+        type=int,
+        default=None,
+        help="Stop after N runs in --daemon mode (default: run forever)",
+    )
+    sub_sync.add_argument(
+        "--once",
+        action="store_true",
+        help="Run exactly one sync then exit (useful with --daemon for uniform logs)",
+    )
+    sub_sync.add_argument(
+        "--stop-on-error",
+        action="store_true",
+        help="Exit immediately if any connector errors during a daemon run",
+    )
+    sub_sync.add_argument(
+        "--show-times",
+        action="store_true",
+        help="Print timestamps and sleep durations in daemon mode",
+    )
     sub_sync.set_defaults(func=cmd_sync)
 
+
+
+    
     # brief
     sub_brief = subparsers.add_parser("brief", help="Generate and display today's briefing")
     sub_brief.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
@@ -907,6 +1089,9 @@ def main() -> None:
     if not args.command:
         parser.print_help()
         sys.exit(0)
+    if args.command == "sync" and getattr(args, "daemon", False):
+        cmd_sync_daemon(args)
+        return
     args.func(args)
 
 
