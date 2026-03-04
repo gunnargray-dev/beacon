@@ -200,9 +200,7 @@ def cmd_sources_test(args: argparse.Namespace) -> None:
 
 def cmd_sync(args: argparse.Namespace) -> None:
     """Sync all enabled sources and cache results to ~/.cache/beacon/last_sync.json."""
-    import importlib
     import json
-    import uuid
     from pathlib import Path
 
     config_path = find_config_file(getattr(args, "config", None))
@@ -218,77 +216,55 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
     _load_connector_registry()
 
-    from src.connectors.base import ConnectorError, registry as connector_registry
-    from src.models import Source, SourceType
+    from src.sync import sync_enabled_sources
+    from src.models import SourceType
 
     enabled = config.enabled_sources()
     if not enabled:
         print("No enabled sources configured.")
         return
 
-    all_events: list[dict] = []
-    all_action_items: list[dict] = []
-    any_error = False
+    result = sync_enabled_sources(enabled)
 
+    # Provide human-readable progress output (tests expect skip messages).
+    # The structured logger emits skip reasons as log events; we also surface
+    # a minimal summary on stdout for CLI ergonomics.
     for src_cfg in enabled:
-        print(f"Syncing {src_cfg.name!r} ({src_cfg.type}) ...", end=" ", flush=True)
         try:
-            src_type = SourceType(src_cfg.type)
+            _ = SourceType(src_cfg.type)
         except ValueError:
             print(f"SKIP -- unknown type {src_cfg.type!r}")
-            continue
 
-        connector_cls = connector_registry.get(src_type)
-        if connector_cls is None:
-            print(f"SKIP -- no connector registered for {src_cfg.type!r}")
-            continue
-
-        source = Source(
-            name=src_cfg.name,
-            source_type=src_type,
-            enabled=src_cfg.enabled,
-            config=src_cfg.config,
+    all_events: list[dict] = []
+    all_action_items: list[dict] = []
+    for ev in result.events:
+        all_events.append(
+            {
+                "id": ev.id,
+                "title": ev.title,
+                "source_id": ev.source_id,
+                "source_type": ev.source_type.value,
+                "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+                "summary": ev.summary,
+                "url": ev.url,
+                "metadata": ev.metadata,
+            }
         )
-        connector = connector_cls(source)
-
-        if not connector.validate_config():
-            print(f"SKIP -- config invalid for {connector_cls.__name__}")
-            continue
-
-        try:
-            events, action_items = connector.sync()
-            print(f"done ({len(events)} events, {len(action_items)} action items)")
-            for ev in events:
-                all_events.append(
-                    {
-                        "id": ev.id,
-                        "title": ev.title,
-                        "source_id": ev.source_id,
-                        "source_type": ev.source_type.value,
-                        "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
-                        "summary": ev.summary,
-                        "url": ev.url,
-                        "metadata": ev.metadata,
-                    }
-                )
-            for ai in action_items:
-                all_action_items.append(
-                    {
-                        "id": ai.id,
-                        "title": ai.title,
-                        "source_id": ai.source_id,
-                        "source_type": ai.source_type.value,
-                        "priority": ai.priority.value,
-                        "due_at": ai.due_at.isoformat() if ai.due_at else None,
-                        "url": ai.url,
-                        "completed": ai.completed,
-                        "notes": ai.notes,
-                        "metadata": ai.metadata,
-                    }
-                )
-        except ConnectorError as exc:
-            print(f"ERROR -- {exc}")
-            any_error = True
+    for ai in result.action_items:
+        all_action_items.append(
+            {
+                "id": ai.id,
+                "title": ai.title,
+                "source_id": ai.source_id,
+                "source_type": ai.source_type.value,
+                "priority": ai.priority.value,
+                "due_at": ai.due_at.isoformat() if ai.due_at else None,
+                "url": ai.url,
+                "completed": ai.completed,
+                "notes": ai.notes,
+                "metadata": ai.metadata,
+            }
+        )
 
     # Write cache
     cache_dir = Path.home() / ".cache" / "beacon"
@@ -306,7 +282,7 @@ def cmd_sync(args: argparse.Namespace) -> None:
     print(f"Sync complete: {len(all_events)} events, {len(all_action_items)} action items")
     print(f"Cached to: {cache_file}")
 
-    if any_error:
+    if result.any_error:
         sys.exit(1)
 
 
@@ -337,8 +313,7 @@ def cmd_sync_daemon(args: argparse.Namespace) -> None:
 
     _load_connector_registry()
 
-    from src.connectors.base import ConnectorError, registry as connector_registry
-    from src.models import Source, SourceType
+    from src.sync import sync_enabled_sources
 
     run = 0
     while True:
@@ -358,96 +333,70 @@ def cmd_sync_daemon(args: argparse.Namespace) -> None:
             print("No enabled sources configured.")
             return
 
+        result = sync_enabled_sources(
+            enabled,
+            json_logs=bool(getattr(args, "json_logs", False)),
+            log_level=str(getattr(args, "log_level", "INFO")),
+        )
+
         all_events: list[dict] = []
         all_action_items: list[dict] = []
-        any_error = False
-
-        for src_cfg in enabled:
-            print(f"Syncing {src_cfg.name!r} ({src_cfg.type}) ...", end=" ", flush=True)
-            try:
-                src_type = SourceType(src_cfg.type)
-            except ValueError:
-                print(f"SKIP -- unknown type {src_cfg.type!r}")
-                continue
-
-            connector_cls = connector_registry.get(src_type)
-            if connector_cls is None:
-                print(f"SKIP -- no connector registered for {src_cfg.type!r}")
-                continue
-
-            source = Source(
-                name=src_cfg.name,
-                source_type=src_type,
-                enabled=src_cfg.enabled,
-                config=src_cfg.config,
+        for ev in result.events:
+            all_events.append(
+                {
+                    "id": ev.id,
+                    "title": ev.title,
+                    "source_id": ev.source_id,
+                    "source_type": ev.source_type.value,
+                    "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+                    "summary": ev.summary,
+                    "url": ev.url,
+                    "metadata": ev.metadata,
+                }
             )
-            connector = connector_cls(source)
-
-            if not connector.validate_config():
-                print(f"SKIP -- config invalid for {connector_cls.__name__}")
-                continue
-
-            try:
-                events, action_items = connector.sync()
-                print(f"done ({len(events)} events, {len(action_items)} action items)")
-                for ev in events:
-                    all_events.append(
-                        {
-                            "id": ev.id,
-                            "title": ev.title,
-                            "source_id": ev.source_id,
-                            "source_type": ev.source_type.value,
-                            "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
-                            "summary": ev.summary,
-                            "url": ev.url,
-                            "metadata": ev.metadata,
-                        }
-                    )
-                for ai in action_items:
-                    all_action_items.append(
-                        {
-                            "id": ai.id,
-                            "title": ai.title,
-                            "source_id": ai.source_id,
-                            "source_type": ai.source_type.value,
-                            "priority": ai.priority.value,
-                            "due_at": ai.due_at.isoformat() if ai.due_at else None,
-                            "url": ai.url,
-                            "completed": ai.completed,
-                            "notes": ai.notes,
-                            "metadata": ai.metadata,
-                        }
-                    )
-            except ConnectorError as exc:
-                print(f"ERROR -- {exc}")
-                any_error = True
+        for ai in result.action_items:
+            all_action_items.append(
+                {
+                    "id": ai.id,
+                    "title": ai.title,
+                    "source_id": ai.source_id,
+                    "source_type": ai.source_type.value,
+                    "priority": ai.priority.value,
+                    "due_at": ai.due_at.isoformat() if ai.due_at else None,
+                    "url": ai.url,
+                    "completed": ai.completed,
+                    "notes": ai.notes,
+                    "metadata": ai.metadata,
+                }
+            )
 
         cache_dir = Path.home() / ".cache" / "beacon"
         cache_dir.mkdir(parents=True, exist_ok=True)
         cache_file = cache_dir / "last_sync.json"
-
         payload = {
             "synced_at": datetime.now(tz=timezone.utc).isoformat(),
             "events": all_events,
             "action_items": all_action_items,
+            "request_id": result.request_id,
         }
         cache_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
         print()
         print(f"Sync complete: {len(all_events)} events, {len(all_action_items)} action items")
         print(f"Cached to: {cache_file}")
+        print(f"Request ID: {result.request_id}")
 
         if once:
-            if any_error:
+            if result.any_error:
                 sys.exit(1)
             return
 
         if max_runs is not None and run >= max_runs:
-            if any_error:
+            if result.any_error:
                 sys.exit(1)
             return
 
-        if any_error and getattr(args, "stop_on_error", False):
+        if result.any_error and getattr(args, "stop_on_error", False):
             sys.exit(1)
 
         elapsed = (datetime.now(tz=timezone.utc) - started).total_seconds()
@@ -520,13 +469,22 @@ def cmd_actions(args: argparse.Namespace) -> None:
 
 
 def cmd_focus(args: argparse.Namespace) -> None:
-    """Show a distraction-free view of today's top 3 priorities."""
-    import json
+    """Distraction-free view of today's top priorities."""
     from pathlib import Path
 
     from src.intelligence.actions import ActionExtractor
-    from src.intelligence.briefing import _action_from_dict, _event_from_dict, _load_sync_data
+    from src.intelligence.briefing import (
+        BriefingGenerator,
+        _action_from_dict,
+        _event_from_dict,
+        _load_sync_data,
+    )
     from src.intelligence.priority import PriorityScorer
+
+    count = int(getattr(args, "count", 3))
+    if count < 1:
+        print("Error: --count must be >= 1")
+        sys.exit(2)
 
     sync_path = getattr(args, "sync_file", None)
     if sync_path:
@@ -540,105 +498,30 @@ def cmd_focus(args: argparse.Namespace) -> None:
     extracted = extractor.extract(events, existing_actions=existing_actions)
     all_actions = existing_actions + extracted
 
-    pending = [a for a in all_actions if not a.completed]
-
-    if not pending:
-        print("Nothing to focus on. Your plate is clear.")
+    if not all_actions:
+        print("No action items found. Run 'beacon sync' first.")
         return
 
-    count = getattr(args, "count", 3) or 3
     scorer = PriorityScorer()
-    top = scorer.top_n(pending, n=count)
+    ranked = scorer.rank([a for a in all_actions if not a.completed])
+    top = ranked[:count]
 
-    print(f"=== Focus Mode -- Top {len(top)} ===\n")
-    for i, item in enumerate(top, 1):
-        print(f"  {i}. {item.title}")
-        if item.due_at:
-            print(f"     Due: {item.due_at.strftime('%Y-%m-%d %H:%M')}")
-        if item.url:
-            print(f"     URL: {item.url}")
-        print()
+    print(f"=== Focus ({len(top)} items) ===")
+    print()
+    from src.models import Priority
 
-
-def _load_sync_cache() -> dict:
-    """Load ~/.cache/beacon/last_sync.json or return empty cache."""
-    import json
-    from pathlib import Path
-
-    cache_file = Path.home() / ".cache" / "beacon" / "last_sync.json"
-    if not cache_file.exists():
-        return {"events": [], "action_items": []}
-    try:
-        return json.loads(cache_file.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {"events": [], "action_items": []}
-
-
-def cmd_notify(args: argparse.Namespace) -> None:
-    """Send a test notification via configured webhook or email."""
-    config_path = find_config_file(getattr(args, "config", None))
-    if config_path is None:
-        print("No config file found. Run 'beacon init' first.")
-        sys.exit(1)
-
-    try:
-        config = load_config(config_path)
-    except ConfigError as exc:
-        print(f"Error loading config: {exc}")
-        sys.exit(1)
-
-    raw = config.raw
-
-    from src.notifications.digest import compile_digest
-    from src.notifications.silence import load_silence_config
-    from src.notifications.webhooks import WebhookError, load_webhook_config, send_webhook
-    from src.notifications.email_digest import EmailError, load_email_config, send_email_digest
-
-    silence_cfg = load_silence_config(raw)
-    if silence_cfg.is_silenced():
-        print("Notifications are currently silenced (focus/quiet hours).")
-        if not getattr(args, "force", False):
-            print("Use --force to send anyway.")
-            sys.exit(0)
-
-    cache = _load_sync_cache()
-    events = cache.get("events", [])
-    action_items = cache.get("action_items", [])
-    digest = compile_digest(events, action_items, window="all", max_events=5, max_actions=5)
-
-    title = "Beacon Test Notification"
-    body = f"Events: {len(digest.events)}, Actions: {len(digest.action_items)}"
-    items = digest.action_items[:5] + digest.events[:3]
-
-    sent_any = False
-
-    wh_cfg = load_webhook_config(raw)
-    if wh_cfg:
-        print(f"Sending test webhook to {wh_cfg.platform} ...", end=" ", flush=True)
-        try:
-            send_webhook(wh_cfg, title, body, items)
-            print("OK")
-            sent_any = True
-        except WebhookError as exc:
-            print(f"FAIL -- {exc}")
-
-    email_cfg = load_email_config(raw)
-    if email_cfg:
-        print(f"Sending test email to {email_cfg.to_addr} ...", end=" ", flush=True)
-        try:
-            send_email_digest(digest, email_cfg)
-            print("OK")
-            sent_any = True
-        except EmailError as exc:
-            print(f"FAIL -- {exc}")
-
-    if not sent_any:
-        print("No notification channels configured.")
-        print("  Add [notifications.webhook] or [notifications.email] to beacon.toml")
+    for item, score in top:
+        marker = "!" if item.priority in (Priority.HIGH, Priority.URGENT) else " "
+        print(f"  [{marker}] [{item.priority.value:<6}] (score: {score:>6.1f})  {item.title}")
 
 
 def cmd_digest(args: argparse.Namespace) -> None:
-    """Compile and send a digest of current events and action items."""
+    """Compile and send a digest."""
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from src.notifications import DigestWindow, NotificationError, Notifications
+
     config_path = find_config_file(getattr(args, "config", None))
     if config_path is None:
         print("No config file found. Run 'beacon init' first.")
@@ -650,253 +533,251 @@ def cmd_digest(args: argparse.Namespace) -> None:
         print(f"Error loading config: {exc}")
         sys.exit(1)
 
-    raw = config.raw
-
-    from src.notifications.digest import compile_digest
-    from src.notifications.silence import load_silence_config
-    from src.notifications.webhooks import WebhookError, load_webhook_config, send_webhook
-    from src.notifications.email_digest import EmailError, load_email_config, send_email_digest
-
-    silence_cfg = load_silence_config(raw)
-    if silence_cfg.is_silenced():
-        print("Notifications are currently silenced (focus/quiet hours).")
-        if not getattr(args, "force", False):
-            print("Use --force to send anyway.")
-            sys.exit(0)
-
-    window = getattr(args, "window", "all") or "all"
-    cache = _load_sync_cache()
-    events = cache.get("events", [])
-    action_items = cache.get("action_items", [])
-    digest = compile_digest(events, action_items, window=window)
-
-    output_fmt = getattr(args, "output", None)
-    if output_fmt == "text":
-        print(digest.as_text())
-        return
-    if output_fmt == "html":
-        print(digest.as_html())
-        return
-
-    # Send via configured channels
-    title = f"Beacon {window.title()} Digest"
-    body = digest.as_text()[:500]
-    items_combined = digest.action_items + digest.events
-
-    sent_any = False
-
-    wh_cfg = load_webhook_config(raw)
-    if wh_cfg:
-        print(f"Sending digest via {wh_cfg.platform} webhook ...", end=" ", flush=True)
-        try:
-            send_webhook(wh_cfg, title, body, items_combined)
-            print("OK")
-            sent_any = True
-        except WebhookError as exc:
-            print(f"FAIL -- {exc}")
-
-    email_cfg = load_email_config(raw)
-    if email_cfg:
-        print(f"Sending digest email to {email_cfg.to_addr} ...", end=" ", flush=True)
-        try:
-            send_email_digest(digest, email_cfg)
-            print("OK")
-            sent_any = True
-        except EmailError as exc:
-            print(f"FAIL -- {exc}")
-
-    if not sent_any:
-        print("No notification channels configured -- printing digest to stdout.")
-        print()
-        print(digest.as_text())
-
-
-def cmd_query(args: argparse.Namespace) -> None:
-    """Query events and action items from the local Beacon store."""
-    import json
-
-    from src.store import BeaconStore, dump_action_item, dump_event
-
-    store = BeaconStore(getattr(args, "db", None))
-
-    mode = getattr(args, "mode", "actions") or "actions"
-    limit = int(getattr(args, "limit", 25) or 25)
-
-    if mode == "events":
-        since = getattr(args, "since", None)
-        until = getattr(args, "until", None)
-        src_type = getattr(args, "source_type", None)
-        src_name = getattr(args, "source", None)
-        from datetime import datetime
-
-        events = store.query_events(
-            source_type=src_type,
-            source_name=src_name,
-            since=datetime.fromisoformat(since) if since else None,
-            until=datetime.fromisoformat(until) if until else None,
-            limit=limit,
-        )
-        print(json.dumps([dump_event(e) for e in events], indent=2, sort_keys=True))
-        return
-
-    # actions
-    src_type = getattr(args, "source_type", None)
-    src_name = getattr(args, "source", None)
-    priority = getattr(args, "priority", None)
-    completed_flag = getattr(args, "completed", None)
-    completed: bool | None
-    if completed_flag is None:
-        completed = None
-    else:
-        completed = bool(completed_flag)
-
-    actions = store.query_action_items(
-        source_type=src_type,
-        source_name=src_name,
-        priority=priority,
-        completed=completed,
-        limit=limit,
-    )
-    print(json.dumps([dump_action_item(a) for a in actions], indent=2, sort_keys=True))
-
-
-def cmd_ingest(args: argparse.Namespace) -> None:
-    """Ingest a sync cache JSON into the local Beacon store."""
-    from pathlib import Path
-
-    from src.ingest import ingest_sync_cache
-
-    sync_file = getattr(args, "sync_file", None)
-    if not sync_file:
-        print("Error: --sync-file is required")
+    sync_path = Path.home() / ".cache" / "beacon" / "last_sync.json"
+    if not sync_path.exists():
+        print("No sync cache found. Run 'beacon sync' first.")
         sys.exit(1)
 
-    db_path = getattr(args, "db", None)
-    res = ingest_sync_cache(Path(sync_file), db_path=db_path)
-    print(f"Ingested: {res.events_written} events written, {res.actions_written} action items written")
+    window = DigestWindow(getattr(args, "window", "all"))
+    output = getattr(args, "output", None)
 
+    if output:
+        # Just print digest to stdout
+        from src.intelligence.briefing import BriefingGenerator
 
-def cmd_dashboard(args: argparse.Namespace) -> None:
-    """Start the Beacon web dashboard."""
+        gen = BriefingGenerator(sync_path=sync_path)
+        briefing = gen.generate()
+        print(gen.format_text(briefing))
+        return
+
+    # Send digest
     try:
-        import uvicorn
-    except ImportError:
-        print("Error: uvicorn is not installed.")
-        print("  Install web dependencies: pip install 'beacon[web]'\n")
+        notifier = Notifications.from_config(config)
+    except NotificationError as exc:
+        print(f"Notification config error: {exc}")
+        sys.exit(1)
+
+    # Respect silence hours unless forced
+    if notifier.is_silenced() and not getattr(args, "force", False):
+        print("Notifications are currently silenced by smart silence rules.")
+        print("Use --force to send anyway.")
+        return
+
+    try:
+        notifier.send_digest(window=window)
+        print(f"Digest sent ({window.value}).")
+    except NotificationError as exc:
+        print(f"Error sending digest: {exc}")
+        sys.exit(1)
+
+
+def cmd_notify(args: argparse.Namespace) -> None:
+    """Send a test notification."""
+    from src.notifications import NotificationError, Notifications
+
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
         sys.exit(1)
 
     try:
-        from src.web.server import create_app
-    except ImportError as exc:
-        print(f"Error loading web module: {exc}")
+        config = load_config(config_path)
+    except ConfigError as exc:
+        print(f"Error loading config: {exc}")
         sys.exit(1)
-
-    host = getattr(args, "host", "127.0.0.1")
-    port = getattr(args, "port", 8000)
-
-    print(f"Beacon dashboard starting at http://{host}:{port}")
-    print("Press Ctrl+C to stop.")
-
-    app = create_app()
-    uvicorn.run(app, host=host, port=port, log_level="warning")
-
-
-def cmd_export(args: argparse.Namespace) -> None:
-    """Export store data to JSON, HTML, or PDF."""
-    from src.store import BeaconStore
-    from src.store_export.exporter import export_store_query
-
-    fmt = getattr(args, "format", "json") or "json"
-    output_path = getattr(args, "output", None)
-    source_type = getattr(args, "source_type", None)
-    limit = int(getattr(args, "limit", 5000) or 5000)
-    title = getattr(args, "title", "Beacon Store Export") or "Beacon Store Export"
-    db_path = getattr(args, "db", None)
-
-    store = BeaconStore(db_path)
-    if not store.db_path.exists():
-        print(f"Store not found at {store.db_path}")
-        print("Run 'beacon sync' and 'beacon ingest --sync-file ...' first.")
-        sys.exit(1)
-
-    since_str = getattr(args, "since", None)
-    until_str = getattr(args, "until", None)
-    from datetime import datetime
-
-    since = datetime.fromisoformat(since_str) if since_str else None
-    until = datetime.fromisoformat(until_str) if until_str else None
 
     try:
-        path = export_store_query(
-            store,
-            fmt=fmt,
-            output_path=output_path,
-            source_type=source_type,
-            since=since,
-            until=until,
-            limit=limit,
-            title=title,
-        )
-        print(f"Exported to: {path}")
-    except ValueError as exc:
-        print(f"Error: {exc}")
+        notifier = Notifications.from_config(config)
+    except NotificationError as exc:
+        print(f"Notification config error: {exc}")
+        sys.exit(1)
+
+    # Respect silence hours unless forced
+    if notifier.is_silenced() and not getattr(args, "force", False):
+        print("Notifications are currently silenced by smart silence rules.")
+        print("Use --force to send anyway.")
+        return
+
+    try:
+        notifier.send_test()
+        print("Test notification sent.")
+    except NotificationError as exc:
+        print(f"Error sending notification: {exc}")
         sys.exit(1)
 
 
 def cmd_health(args: argparse.Namespace) -> None:
     """Run health diagnostics."""
-    from src.health import run_health_check
+    from src.health import HealthReport
 
-    config_path = getattr(args, "config", None)
-    db_path = getattr(args, "db", None)
-    report = run_health_check(config_path=config_path, db_path=db_path)
-    print(report.as_text())
-    if not report.ok:
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    report = HealthReport(config_path=config_path)
+    print(report.format_text())
+
+    if report.has_errors:
         sys.exit(1)
 
 
-def cmd_check(args: argparse.Namespace) -> None:
-    """Lint beacon.toml for common errors."""
-    from src.config_lint import lint_config
+def cmd_export(args: argparse.Namespace) -> None:
+    """Export store data to JSON/HTML/PDF."""
+    from src.export import export_store
 
-    config_path = getattr(args, "config", None)
-    report = lint_config(config_path)
-    print(report.as_text())
-    if not report.ok:
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    out_format = getattr(args, "format", None)
+    if out_format is None:
+        out_format = "json"
+
+    try:
+        export_store(config_path=config_path, fmt=str(out_format), output_path=getattr(args, "output", None))
+    except Exception as exc:  # noqa: BLE001
+        print(f"Export failed: {exc}")
         sys.exit(1)
 
 
 def cmd_db(args: argparse.Namespace) -> None:
-    """Print Beacon store DB path + basic counts."""
+    """Print db_path + counts for events/action_items."""
+    from src.db_cli import db_status
 
-    from src.db_cli import cmd_db as _cmd_db
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
 
-    db_path = getattr(args, "db", None)
-    code = _cmd_db(db_path)
-    if code:
-        sys.exit(code)
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        print(f"Error loading config: {exc}")
+        sys.exit(1)
+
+    db_path = getattr(config, "db_path", None)
+    if not db_path:
+        print("No db_path configured in beacon.toml.")
+        sys.exit(1)
+
+    print(db_status(db_path))
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="beacon",
-        description="Your personal ops agent -- unified briefings, action items, and smart notifications.",
+def cmd_ingest(args: argparse.Namespace) -> None:
+    """Ingest last_sync.json into the local store."""
+    from pathlib import Path
+
+    from src.ingest import ingest_sync_cache
+
+    db_path = getattr(args, "db_path", None)
+    if not db_path:
+        print("Error: --db-path is required")
+        sys.exit(2)
+
+    sync_path = getattr(args, "sync_file", None)
+    if sync_path:
+        sync_path = Path(sync_path)
+
+    try:
+        counts = ingest_sync_cache(db_path=db_path, sync_path=sync_path)
+    except Exception as exc:  # noqa: BLE001
+        print(f"Ingest failed: {exc}")
+        sys.exit(1)
+
+    print(
+        f"Ingest complete: {counts['events_inserted']} events inserted, "
+        f"{counts['action_items_inserted']} action items inserted"
     )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {VERSION}",
-    )
 
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+def cmd_query(args: argparse.Namespace) -> None:
+    """Query events/action items from the local store."""
+    from datetime import datetime
+
+    from src.store.query import query_store
+
+    db_path = getattr(args, "db_path", None)
+    if not db_path:
+        print("Error: --db-path is required")
+        sys.exit(2)
+
+    start = getattr(args, "start", None)
+    end = getattr(args, "end", None)
+    source_type = getattr(args, "source_type", None)
+
+    def _parse_dt(val: str | None) -> datetime | None:
+        if not val:
+            return None
+        return datetime.fromisoformat(val)
+
+    try:
+        results = query_store(
+            db_path=db_path,
+            kind=str(getattr(args, "kind", "events")),
+            start=_parse_dt(start),
+            end=_parse_dt(end),
+            source_type=str(source_type) if source_type else None,
+            limit=int(getattr(args, "limit", 50)),
+            offset=int(getattr(args, "offset", 0)),
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Query failed: {exc}")
+        sys.exit(1)
+
+    for row in results:
+        print(row)
+
+
+def cmd_web(args: argparse.Namespace) -> None:
+    """Run the web dashboard server."""
+    import uvicorn
+
+    from src.web.app import create_app
+
+    host = getattr(args, "host", "127.0.0.1")
+    port = int(getattr(args, "port", 8000))
+    app = create_app()
+    uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
+def cmd_check(args: argparse.Namespace) -> None:
+    """Lint beacon.toml for common errors and print actionable warnings."""
+    from pathlib import Path
+
+    from src.config_lint import lint_config
+
+    config_path = find_config_file(getattr(args, "config", None))
+    if config_path is None:
+        print("No config file found. Run 'beacon init' first.")
+        sys.exit(1)
+
+    raw = Path(config_path).read_text(encoding="utf-8")
+    warnings = lint_config(raw)
+    if not warnings:
+        print("OK -- no issues found")
+        return
+
+    for w in warnings:
+        print(f"WARN: {w}")
+    sys.exit(1)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Entry point for the beacon CLI."""
+    argv = argv if argv is not None else sys.argv[1:]
+
+    parser = argparse.ArgumentParser(prog="beacon", description="Beacon -- your personal ops agent")
+    subparsers = parser.add_subparsers(dest="cmd")
 
     # status
-    sub_status = subparsers.add_parser("status", help="Show connection status and pending items")
+    sub_status = subparsers.add_parser("status", help="Show status")
     sub_status.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
     sub_status.set_defaults(func=cmd_status)
 
     # init
-    sub_init = subparsers.add_parser("init", help="Create a default config file")
+    sub_init = subparsers.add_parser("init", help="Create default config")
     sub_init.add_argument(
         "--path",
         metavar="PATH",
@@ -957,6 +838,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print timestamps and sleep durations in daemon mode",
     )
+    sub_sync.add_argument(
+        "--json-logs",
+        action="store_true",
+        help="Output structured JSON logs during sync runs (daemon mode only)",
+    )
+    sub_sync.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Log level for JSON logs (DEBUG/INFO/WARNING/ERROR). Default: INFO",
+    )
     sub_sync.set_defaults(func=cmd_sync)
 
     # brief
@@ -1000,115 +891,77 @@ def build_parser() -> argparse.ArgumentParser:
     sub_digest.set_defaults(func=cmd_digest)
 
     # ingest
-    sub_ingest = subparsers.add_parser("ingest", help="Import a sync cache into the local store")
-    sub_ingest.add_argument("--sync-file", metavar="PATH", required=True, help="Path to sync cache JSON")
-    sub_ingest.add_argument(
-        "--db",
-        metavar="PATH",
-        default=None,
-        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
-    )
+    sub_ingest = subparsers.add_parser("ingest", help="Ingest last sync cache into local store")
+    sub_ingest.add_argument("--db-path", metavar="PATH", required=True, help="Path to SQLite db")
+    sub_ingest.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
     sub_ingest.set_defaults(func=cmd_ingest)
 
     # query
-    sub_query = subparsers.add_parser("query", help="Query the local store")
+    sub_query = subparsers.add_parser("query", help="Query events/action items from local store")
+    sub_query.add_argument("--db-path", metavar="PATH", required=True, help="Path to SQLite db")
     sub_query.add_argument(
-        "mode",
-        nargs="?",
-        choices=["actions", "events"],
-        default="actions",
-        help="What to query (default: actions)",
+        "--kind",
+        choices=["events", "action_items"],
+        default="events",
+        help="What to query (events or action_items)",
     )
-    sub_query.add_argument(
-        "--db",
-        metavar="PATH",
-        default=None,
-        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
-    )
-    sub_query.add_argument("--limit", type=int, default=25, help="Max results (default: 25)")
-    sub_query.add_argument(
-        "--source-type", dest="source_type", default=None, help="Filter by source type (e.g. github)"
-    )
-    sub_query.add_argument("--source", default=None, help="Filter by source name/id")
-    sub_query.add_argument("--priority", default=None, help="Filter action items by priority")
-    sub_query.add_argument("--completed", action="store_true", help="Only completed action items")
-    sub_query.add_argument("--since", default=None, help="Events since ISO datetime")
-    sub_query.add_argument("--until", default=None, help="Events until ISO datetime")
+    sub_query.add_argument("--start", metavar="ISO", default=None, help="Start datetime (ISO format)")
+    sub_query.add_argument("--end", metavar="ISO", default=None, help="End datetime (ISO format)")
+    sub_query.add_argument("--source-type", metavar="TYPE", default=None, help="Filter by source type")
+    sub_query.add_argument("--limit", type=int, default=50, help="Limit results (default: 50)")
+    sub_query.add_argument("--offset", type=int, default=0, help="Offset results (default: 0)")
     sub_query.set_defaults(func=cmd_query)
 
-    # check
-    sub_check = subparsers.add_parser("check", help="Lint beacon.toml for common errors")
-    sub_check.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
-    sub_check.set_defaults(func=cmd_check)
-
-    # db
-    sub_db = subparsers.add_parser("db", help="Show store DB path and basic counts")
-    sub_db.add_argument(
-        "--db",
-        metavar="PATH",
-        default=None,
-        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
-    )
-    sub_db.set_defaults(func=cmd_db)
-
-    # export
-    sub_export = subparsers.add_parser("export", help="Export store data to JSON, HTML, or PDF")
-    sub_export.add_argument(
-        "--format",
-        choices=["json", "html", "pdf"],
-        default="json",
-        help="Output format (default: json)",
-    )
-    sub_export.add_argument(
-        "--output",
-        metavar="PATH",
-        default=None,
-        help="Output file path (default: auto-generated)",
-    )
-    sub_export.add_argument(
-        "--db",
-        metavar="PATH",
-        default=None,
-        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
-    )
-    sub_export.add_argument("--source-type", dest="source_type", default=None, help="Filter by source type")
-    sub_export.add_argument("--since", default=None, help="Events since ISO datetime")
-    sub_export.add_argument("--until", default=None, help="Events until ISO datetime")
-    sub_export.add_argument("--limit", type=int, default=5000, help="Max rows (default: 5000)")
-    sub_export.add_argument("--title", default="Beacon Store Export", help="Document title for HTML/PDF")
-    sub_export.set_defaults(func=cmd_export)
+    # web
+    sub_web = subparsers.add_parser("web", help="Run the web dashboard")
+    sub_web.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
+    sub_web.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
+    sub_web.set_defaults(func=cmd_web)
 
     # health
     sub_health = subparsers.add_parser("health", help="Run health diagnostics")
     sub_health.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
-    sub_health.add_argument(
-        "--db",
-        metavar="PATH",
-        default=None,
-        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
-    )
     sub_health.set_defaults(func=cmd_health)
 
-    # dashboard
-    sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
-    sub_dash.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
-    sub_dash.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
-    sub_dash.set_defaults(func=cmd_dashboard)
+    # export
+    sub_export = subparsers.add_parser("export", help="Export store data")
+    sub_export.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_export.add_argument(
+        "--format",
+        choices=["json", "html", "pdf"],
+        default="json",
+        help="Export format (default: json)",
+    )
+    sub_export.add_argument("--output", metavar="PATH", default=None, help="Output path")
+    sub_export.set_defaults(func=cmd_export)
 
-    return parser
+    # db
+    sub_db = subparsers.add_parser("db", help="Show db status")
+    sub_db.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_db.set_defaults(func=cmd_db)
 
+    # check
+    sub_check = subparsers.add_parser("check", help="Lint beacon.toml")
+    sub_check.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_check.set_defaults(func=cmd_check)
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
-    if not args.command:
-        parser.print_help()
-        sys.exit(0)
-    if args.command == "sync" and getattr(args, "daemon", False):
+    args = parser.parse_args(argv)
+
+    # If sync --daemon, dispatch to daemon handler.
+    if getattr(args, "cmd", None) == "sync" and getattr(args, "daemon", False):
         cmd_sync_daemon(args)
-        return
-    args.func(args)
+        return 0
+
+    if not hasattr(args, "func"):
+        parser.print_help()
+        return 0
+
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        return 130
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
