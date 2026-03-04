@@ -81,3 +81,16 @@
 - [x] Store queries: add pagination (cursor or offset) + stable sorting options
 - [x] Web API: add /api/store/stats (counts by source_type, completed vs pending)
 - [x] Export: allow exporting directly from store queries (no cache required)
+
+## Phase 9 -- Resilience & Developer Experience
+
+- [x] `beacon export` -- CLI command to export store data to JSON/HTML/PDF with filters
+- [x] `beacon health` -- CLI health diagnostics (config, store, sync cache, sources)
+- [ ] Scheduled sync: cron-friendly `beacon sync --daemon` mode with configurable interval
+- [ ] Retry logic: exponential backoff for all connectors on transient failures
+- [ ] Config validation: `beacon check` command to lint beacon.toml for common errors
+- [ ] Migration system: versioned store schema migrations (auto-upgrade on startup)
+- [ ] `beacon shell` -- interactive REPL for ad-hoc queries and exploration
+- [ ] Structured logging: JSON log output with levels, timestamps, request IDs
+- [ ] Performance benchmarks: pytest-benchmark suite for store queries and sync pipeline
+- [ ] Plugin SDK: documented API + scaffold command for third-party connector development
