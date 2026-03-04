@@ -10,14 +10,14 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 15 |
-| PRs merged | 19 |
+| Sessions | 16 |
+| PRs merged | 20 |
 | Source modules | 7 |
 | Intelligence modules | 5 |
 | Notification modules | 5 |
 | Advanced modules | 8 |
-| Tests passing | 688 |
-| CLI commands | 21 |
+| Tests passing | 693 |
+| CLI commands | 22 |
 | Roadmap phases complete | 8/8 + Phase 9 in progress |
 
 ## What It Does
@@ -48,7 +48,7 @@ beacon/
   src/
     models.py          # Core data models
     config.py          # Configuration system
-    cli.py             # CLI framework (21 commands)
+    cli.py             # CLI framework (22 commands)
     health.py          # Health diagnostics
     connectors/        # Source connectors (GitHub, Calendar, Email, Weather, News, HN)
     intelligence/      # Briefing generator, priority scorer, conflict detector, pattern analyzer
@@ -56,7 +56,7 @@ beacon/
     web/               # FastAPI dashboard with Jinja2 templates
     advanced/          # Retrospective, meeting prep, relationships, time audit, trends, export, API
     store_export/      # Store-backed export to JSON/HTML/PDF
-  tests/               # 688 tests
+  tests/               # 693 tests
   beacon.toml          # Configuration
 ```
 
@@ -111,11 +111,10 @@ github_token = "..."
 - `beacon query`
 - `beacon web`
 - `beacon dashboard`
+- `beacon shell`
 - `beacon health`
 - `beacon export`
 - `beacon db`
 - `beacon check`
 
 ## License
-
-MIT
