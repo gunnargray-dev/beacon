@@ -82,9 +82,9 @@ A running log of what Beacon has built. Each session corresponds to a PR.
 
 **Completed**:
 - `src/web/store_api.py` -- Store-backed JSON endpoints mounted at `/api/store/*`:
-  - `GET /api/store/meta` — db_path + whether the DB exists
-  - `GET /api/store/events` — filters: source_type, source_id, since, until, limit
-  - `GET /api/store/action-items` — filters: source_type, source_id, priority, completed, due_before, limit
+  - `GET /api/store/meta` -- db_path + whether the DB exists
+  - `GET /api/store/events` -- filters: source_type, source_id, since, until, limit
+  - `GET /api/store/action-items` -- filters: source_type, source_id, priority, completed, due_before, limit
 - `src/web/server.py` -- Mount store API router
 - `tests/test_web_store_api.py` -- FastAPI tests for validation + missing DB behavior
 
@@ -134,5 +134,21 @@ A running log of what Beacon has built. Each session corresponds to a PR.
 - `tests/test_store_export.py` -- unit tests covering payload shaping + export file writing
 
 **Stats**: 540+ tests passing, PRs merged: 14, Sessions: 10
+
+---
+
+## Session 11 -- 2026-03-04
+
+>**PR**: [#18 Session 11: Store export CLI, health diagnostics](https://github.com/gunnargray-dev/beacon/pull/18)
+
+**Completed**:
+- `src/store_export/` -- re-created store export module (was missing from main after Session 10 merge) with `build_store_export_payload` + `export_store_query`
+- `src/health.py` -- health diagnostics module: `HealthReport` dataclass + `run_health_check` (checks config, store DB, sync cache, sources)
+- `src/cli.py` -- added `beacon export` (export store data to JSON/HTML/PDF with filters) and `beacon health` (run diagnostics) commands
+- `tests/test_store_export.py` -- 15 tests for store export payload + file writing
+- `tests/test_health.py` -- 12 tests for health report generation
+- `tests/test_export_health_cli.py` -- 8 tests for CLI integration
+
+**Stats**: 677 tests passing, PRs merged: 15, Sessions: 11
 
 ---
