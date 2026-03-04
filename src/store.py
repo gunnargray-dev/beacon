@@ -8,14 +8,15 @@ continue operating from the sync cache.
 
 from __future__ import annotations
 
+import base64
 import json
 import sqlite3
-import base64
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from src.migrations import Migration, apply_migrations
 from src.models import ActionItem, Event, Priority, SourceType
 
 
@@ -50,6 +51,8 @@ def _iso_to_dt(value: str | None) -> datetime | None:
 class BeaconStore:
     """SQLite store for events and action items."""
 
+    LATEST_SCHEMA_VERSION = 1
+
     def __init__(self, db_path: str | Path | None = None) -> None:
         self.db_path = Path(db_path) if db_path else default_db_path()
 
@@ -60,8 +63,8 @@ class BeaconStore:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
-    def init_db(self) -> None:
-        with self.connect() as conn:
+    def _migrations(self) -> list[Migration]:
+        def v1_init(conn: sqlite3.Connection) -> None:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS events (
@@ -94,6 +97,36 @@ class BeaconStore:
                 )
                 """
             )
+
+        return [
+            Migration(version=1, name="init_store", apply=v1_init),
+        ]
+
+    def init_db(self) -> None:
+        with self.connect() as conn:
+            apply_migrations(conn, self._migrations())
+
+    def encode_event_cursor(self, event: Event, *, sort: str = "occurred_at_desc") -> str:
+        """Return an opaque cursor string for pagination."""
+        if sort not in {"occurred_at_desc", "occurred_at_asc"}:
+            raise ValueError(f"Invalid sort: {sort!r}")
+        payload = {
+            "occurred_at": _dt_to_iso(event.occurred_at),
+            "created_at": _dt_to_iso(event.created_at),
+            "id": event.id,
+        }
+        raw = json.dumps(payload, sort_keys=True).encode("utf-8")
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+    def encode_action_item_cursor(self, item: ActionItem, *, sort: str = "default") -> str:
+        if sort not in {"default", "created_at_desc"}:
+            raise ValueError(f"Invalid sort: {sort!r}")
+        payload = {
+            "created_at": _dt_to_iso(item.created_at),
+            "id": item.id,
+        }
+        raw = json.dumps(payload, sort_keys=True).encode("utf-8")
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
     # ---------------------------------------------------------------------
     # Upserts / ingestion

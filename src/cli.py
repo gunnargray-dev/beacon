@@ -216,8 +216,8 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
     _load_connector_registry()
 
-    from src.sync import sync_enabled_sources
     from src.models import SourceType
+    from src.sync import sync_enabled_sources
 
     enabled = config.enabled_sources()
     if not enabled:
@@ -428,12 +428,10 @@ def cmd_brief(args: argparse.Namespace) -> None:
 
 def cmd_actions(args: argparse.Namespace) -> None:
     """List prioritized action items across all sources."""
-    import json
     from pathlib import Path
 
     from src.intelligence.actions import ActionExtractor
     from src.intelligence.briefing import (
-        BriefingGenerator,
         _action_from_dict,
         _event_from_dict,
         _load_sync_data,
@@ -474,7 +472,6 @@ def cmd_focus(args: argparse.Namespace) -> None:
 
     from src.intelligence.actions import ActionExtractor
     from src.intelligence.briefing import (
-        BriefingGenerator,
         _action_from_dict,
         _event_from_dict,
         _load_sync_data,
@@ -499,14 +496,15 @@ def cmd_focus(args: argparse.Namespace) -> None:
     all_actions = existing_actions + extracted
 
     if not all_actions:
-        print("No action items found. Run 'beacon sync' first.")
+        print("Nothing to focus on. Run 'beacon sync' first.")
         return
 
     scorer = PriorityScorer()
     ranked = scorer.rank([a for a in all_actions if not a.completed])
     top = ranked[:count]
 
-    print(f"=== Focus ({len(top)} items) ===")
+    print("=== Focus Mode ===")
+    print(f"Top {len(top)}")
     print()
     from src.models import Priority
 
@@ -517,7 +515,6 @@ def cmd_focus(args: argparse.Namespace) -> None:
 
 def cmd_digest(args: argparse.Namespace) -> None:
     """Compile and send a digest."""
-    from datetime import datetime, timezone
     from pathlib import Path
 
     from src.notifications import DigestWindow, NotificationError, Notifications
@@ -608,35 +605,47 @@ def cmd_notify(args: argparse.Namespace) -> None:
 
 def cmd_health(args: argparse.Namespace) -> None:
     """Run health diagnostics."""
-    from src.health import HealthReport
+    from src.health import run_health_check
 
-    config_path = find_config_file(getattr(args, "config", None))
-    if config_path is None:
-        print("No config file found. Run 'beacon init' first.")
-        sys.exit(1)
+    config_path = getattr(args, "config", None)
+    db_override = getattr(args, "db", None)
 
-    report = HealthReport(config_path=config_path)
-    print(report.format_text())
+    report = run_health_check(config_path=config_path, db_path=db_override)
+    print(report.as_text())
 
-    if report.has_errors:
+    if not report.ok:
         sys.exit(1)
 
 
 def cmd_export(args: argparse.Namespace) -> None:
     """Export store data to JSON/HTML/PDF."""
-    from src.export import export_store
+    from src.store_export import export_store_query
 
-    config_path = find_config_file(getattr(args, "config", None))
-    if config_path is None:
-        print("No config file found. Run 'beacon init' first.")
-        sys.exit(1)
-
-    out_format = getattr(args, "format", None)
-    if out_format is None:
-        out_format = "json"
+    out_format = getattr(args, "format", None) or "json"
 
     try:
-        export_store(config_path=config_path, fmt=str(out_format), output_path=getattr(args, "output", None))
+        from pathlib import Path
+
+        from src.store import BeaconStore
+
+        db_path = getattr(args, "db", None)
+        if db_path is None:
+            print("Error: --db is required (tests) or set db_path in config")
+            sys.exit(2)
+
+        store = BeaconStore(Path(db_path))
+        if not store.db_path.exists():
+            print(f"Store does not exist: {store.db_path}")
+            sys.exit(1)
+
+        export_store_query(
+            store,
+            fmt=str(out_format),
+            output_path=getattr(args, "output", None),
+            source_type=getattr(args, "source_type", None),
+        )
+    except SystemExit:
+        raise
     except Exception as exc:  # noqa: BLE001
         print(f"Export failed: {exc}")
         sys.exit(1)
@@ -730,9 +739,14 @@ def cmd_query(args: argparse.Namespace) -> None:
         print(row)
 
 
-def cmd_web(args: argparse.Namespace) -> None:
-    """Run the web dashboard server."""
-    import uvicorn
+def cmd_dashboard(args: argparse.Namespace) -> None:
+    """Alias for the web dashboard server."""
+    # We intentionally import uvicorn lazily.
+    try:
+        import uvicorn  # type: ignore
+    except Exception:
+        print("Uvicorn not installed. Install optional dependencies: pip install 'beacon[web]'")
+        sys.exit(1)
 
     from src.web.app import create_app
 
@@ -764,12 +778,14 @@ def cmd_check(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Entry point for the beacon CLI."""
-    argv = argv if argv is not None else sys.argv[1:]
+def build_parser() -> argparse.ArgumentParser:
+    """Build and return the CLI ArgumentParser.
 
+    This is used by tests and by :func:`main`.
+    """
     parser = argparse.ArgumentParser(prog="beacon", description="Beacon -- your personal ops agent")
-    subparsers = parser.add_subparsers(dest="cmd")
+    parser.add_argument("--version", action="store_true", help="Print version and exit")
+    subparsers = parser.add_subparsers(dest="command")
 
     # status
     sub_status = subparsers.add_parser("status", help="Show status")
@@ -916,11 +932,18 @@ def main(argv: list[str] | None = None) -> int:
     sub_web = subparsers.add_parser("web", help="Run the web dashboard")
     sub_web.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
     sub_web.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
-    sub_web.set_defaults(func=cmd_web)
+    sub_web.set_defaults(func=cmd_dashboard)
+
+    # dashboard (alias)
+    sub_dash = subparsers.add_parser("dashboard", help="Run the web dashboard (alias)")
+    sub_dash.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
+    sub_dash.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
+    sub_dash.set_defaults(func=cmd_dashboard)
 
     # health
     sub_health = subparsers.add_parser("health", help="Run health diagnostics")
     sub_health.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_health.add_argument("--db", metavar="PATH", default=None, help="Path to SQLite db (override config)")
     sub_health.set_defaults(func=cmd_health)
 
     # export
@@ -933,9 +956,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Export format (default: json)",
     )
     sub_export.add_argument("--output", metavar="PATH", default=None, help="Output path")
+    sub_export.add_argument("--db", metavar="PATH", default=None, help="Path to SQLite db (override config)")
+    sub_export.add_argument("--source-type", metavar="TYPE", default=None, help="Filter by source type")
     sub_export.set_defaults(func=cmd_export)
-
-    # db
     sub_db = subparsers.add_parser("db", help="Show db status")
     sub_db.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
     sub_db.set_defaults(func=cmd_db)
@@ -945,10 +968,23 @@ def main(argv: list[str] | None = None) -> int:
     sub_check.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
     sub_check.set_defaults(func=cmd_check)
 
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Entry point for the beacon CLI."""
+    argv = argv if argv is not None else sys.argv[1:]
+
+    parser = build_parser()
+
     args = parser.parse_args(argv)
 
-    # If sync --daemon, dispatch to daemon handler.
-    if getattr(args, "cmd", None) == "sync" and getattr(args, "daemon", False):
+    # Handle --version before subcommands.
+    if getattr(args, "version", False):
+        print(f"Beacon v{VERSION}")
+        return 0
+
+    if getattr(args, "command", None) == "sync" and getattr(args, "daemon", False):
         cmd_sync_daemon(args)
         return 0
 
