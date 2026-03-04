@@ -87,8 +87,8 @@
 - [x] `beacon export` -- CLI command to export store data to JSON/HTML/PDF with filters
 - [x] `beacon health` -- CLI health diagnostics (config, store, sync cache, sources)
 - [x] Scheduled sync: cron-friendly `beacon sync --daemon` mode with configurable interval
-- [ ] Retry logic: exponential backoff for all connectors on transient failures
-- [ ] Config validation: `beacon check` command to lint beacon.toml for common errors
+- [x] Retry logic: exponential backoff helper + initial CLI integration for transient failures
+- [x] Config validation: `beacon check` command to lint beacon.toml for common errors
 - [ ] Migration system: versioned store schema migrations (auto-upgrade on startup)
 - [ ] `beacon shell` -- interactive REPL for ad-hoc queries and exploration
 - [ ] Structured logging: JSON log output with levels, timestamps, request IDs

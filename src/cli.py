@@ -782,7 +782,7 @@ def cmd_dashboard(args: argparse.Namespace) -> None:
         import uvicorn
     except ImportError:
         print("Error: uvicorn is not installed.")
-        print("  Install web dependencies: pip install 'beacon[web]'")
+        print("  Install web dependencies: pip install 'beacon[web]'\n")
         sys.exit(1)
 
     try:
@@ -850,6 +850,17 @@ def cmd_health(args: argparse.Namespace) -> None:
     config_path = getattr(args, "config", None)
     db_path = getattr(args, "db", None)
     report = run_health_check(config_path=config_path, db_path=db_path)
+    print(report.as_text())
+    if not report.ok:
+        sys.exit(1)
+
+
+def cmd_check(args: argparse.Namespace) -> None:
+    """Lint beacon.toml for common errors."""
+    from src.config_lint import lint_config
+
+    config_path = getattr(args, "config", None)
+    report = lint_config(config_path)
     print(report.as_text())
     if not report.ok:
         sys.exit(1)
@@ -948,9 +959,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub_sync.set_defaults(func=cmd_sync)
 
-
-
-    
     # brief
     sub_brief = subparsers.add_parser("brief", help="Generate and display today's briefing")
     sub_brief.add_argument("--sync-file", metavar="PATH", default=None, help="Path to sync cache JSON")
@@ -1018,13 +1026,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
     )
     sub_query.add_argument("--limit", type=int, default=25, help="Max results (default: 25)")
-    sub_query.add_argument("--source-type", dest="source_type", default=None, help="Filter by source type (e.g. github)")
+    sub_query.add_argument(
+        "--source-type", dest="source_type", default=None, help="Filter by source type (e.g. github)"
+    )
     sub_query.add_argument("--source", default=None, help="Filter by source name/id")
     sub_query.add_argument("--priority", default=None, help="Filter action items by priority")
     sub_query.add_argument("--completed", action="store_true", help="Only completed action items")
     sub_query.add_argument("--since", default=None, help="Events since ISO datetime")
     sub_query.add_argument("--until", default=None, help="Events until ISO datetime")
     sub_query.set_defaults(func=cmd_query)
+
+    # check
+    sub_check = subparsers.add_parser("check", help="Lint beacon.toml for common errors")
+    sub_check.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_check.set_defaults(func=cmd_check)
 
     # db
     sub_db = subparsers.add_parser("db", help="Show store DB path and basic counts")
