@@ -107,3 +107,11 @@ This file tracks what was built in each autonomous development session.
 - Added cursor encoding helpers for event/action pagination
 - Added initial pytest-benchmark suite for store query paths (runs with `--benchmark-disable` in CI)
 - Restored CLI `build_parser` test contract, added `--version`, and added `dashboard` alias
+
+## Session 16
+
+**Date**: 2026-03-04
+
+- Added `beacon shell` interactive REPL for ad-hoc querying of the SQLite store (`events` / `actions`)
+- Shell returns JSON output (rows + next_cursor) to support copy/paste + pagination
+- Added unit tests for help/exit, event pagination cursor flow, action filters, and invalid args
