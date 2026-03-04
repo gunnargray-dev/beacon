@@ -48,27 +48,29 @@ This file tracks what was built in each autonomous development session.
 
 ## Session 8
 
-- Web dashboard: briefing view + calendar view
-- Settings page + source health panel
-- Added smart silence + digest notification rules
+- Web dashboard: briefing view, calendar view, settings view
+- API: add /api/status and basic store endpoints
+- Added notification rules engine + digest scheduler
 
 ## Session 9
 
-- Advanced intelligence: meeting prep + relationship tracker
-- Weekly retrospective + trend detection
-- Time audit module
+- Notification delivery: Slack/Discord webhooks + email digests
+- Smart silence rules (focus blocks, after-hours suppression)
+- Added `beacon notify` + `beacon digest`
 
 ## Session 10
 
-- Persistence: added SQLite store + ingest pipeline
-- Store-backed query APIs + pagination
-- Web UI reads from store when available
+- Advanced intelligence: weekly retrospective + time audit + trend detection
+- Store-backed query improvements + stable sorting
+- Expanded API endpoints + web UI health panels
 
 ## Session 11
 
-- Added `beacon export` (store-backed export to json/html/pdf)
-- Added `beacon health` diagnostics CLI + web export health API
-- Expanded tests for export + health commands
+**Date**: 2026-03-03
+
+- Added `beacon export` command to export store data (json/html/pdf)
+- Implemented store-backed export paths + filters
+- Added tests for export command and store export system
 
 ## Session 12
 
@@ -85,3 +87,13 @@ This file tracks what was built in each autonomous development session.
 - Added `beacon check` command to lint beacon.toml for common errors
 - Added retry utilities with exponential backoff + jitter (dependency-free)
 - Added unit tests for config linting + retry policy helpers
+
+## Session 14
+
+**Date**: 2026-03-04
+
+- Added shared sync pipeline module (src/sync.py) to centralize syncing enabled sources
+- Integrated connector-level retry/backoff for transient failures in sync pipeline
+- Added structured JSON logging utilities + request IDs (src/logging_utils.py)
+- Refactored CLI sync + daemon sync to use shared pipeline; added daemon flags --json-logs and --log-level
+- Added unit tests for logging utilities and sync retry integration
