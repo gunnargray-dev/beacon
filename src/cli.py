@@ -559,7 +559,7 @@ def cmd_digest(args: argparse.Namespace) -> None:
             print(f"FAIL -- {exc}")
 
     if not sent_any:
-        print("No notification channels configured — printing digest to stdout.")
+        print("No notification channels configured -- printing digest to stdout.")
         print()
         print(digest.as_text())
 
@@ -654,6 +654,60 @@ def cmd_dashboard(args: argparse.Namespace) -> None:
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
+def cmd_export(args: argparse.Namespace) -> None:
+    """Export store data to JSON, HTML, or PDF."""
+    from src.store import BeaconStore
+    from src.store_export.exporter import export_store_query
+
+    fmt = getattr(args, "format", "json") or "json"
+    output_path = getattr(args, "output", None)
+    source_type = getattr(args, "source_type", None)
+    limit = int(getattr(args, "limit", 5000) or 5000)
+    title = getattr(args, "title", "Beacon Store Export") or "Beacon Store Export"
+    db_path = getattr(args, "db", None)
+
+    store = BeaconStore(db_path)
+    if not store.db_path.exists():
+        print(f"Store not found at {store.db_path}")
+        print("Run 'beacon sync' and 'beacon ingest --sync-file ...' first.")
+        sys.exit(1)
+
+    since_str = getattr(args, "since", None)
+    until_str = getattr(args, "until", None)
+    from datetime import datetime
+
+    since = datetime.fromisoformat(since_str) if since_str else None
+    until = datetime.fromisoformat(until_str) if until_str else None
+
+    try:
+        path = export_store_query(
+            store,
+            fmt=fmt,
+            output_path=output_path,
+            source_type=source_type,
+            since=since,
+            until=until,
+            limit=limit,
+            title=title,
+        )
+        print(f"Exported to: {path}")
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        sys.exit(1)
+
+
+def cmd_health(args: argparse.Namespace) -> None:
+    """Run health diagnostics."""
+    from src.health import run_health_check
+
+    config_path = getattr(args, "config", None)
+    db_path = getattr(args, "db", None)
+    report = run_health_check(config_path=config_path, db_path=db_path)
+    print(report.as_text())
+    if not report.ok:
+        sys.exit(1)
+
+
 def cmd_db(args: argparse.Namespace) -> None:
     """Print Beacon store DB path + basic counts."""
 
@@ -668,7 +722,7 @@ def cmd_db(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="beacon",
-        description="Your personal ops agent — unified briefings, action items, and smart notifications.",
+        description="Your personal ops agent -- unified briefings, action items, and smart notifications.",
     )
     parser.add_argument(
         "--version",
@@ -799,6 +853,44 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
     )
     sub_db.set_defaults(func=cmd_db)
+
+    # export
+    sub_export = subparsers.add_parser("export", help="Export store data to JSON, HTML, or PDF")
+    sub_export.add_argument(
+        "--format",
+        choices=["json", "html", "pdf"],
+        default="json",
+        help="Output format (default: json)",
+    )
+    sub_export.add_argument(
+        "--output",
+        metavar="PATH",
+        default=None,
+        help="Output file path (default: auto-generated)",
+    )
+    sub_export.add_argument(
+        "--db",
+        metavar="PATH",
+        default=None,
+        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
+    )
+    sub_export.add_argument("--source-type", dest="source_type", default=None, help="Filter by source type")
+    sub_export.add_argument("--since", default=None, help="Events since ISO datetime")
+    sub_export.add_argument("--until", default=None, help="Events until ISO datetime")
+    sub_export.add_argument("--limit", type=int, default=5000, help="Max rows (default: 5000)")
+    sub_export.add_argument("--title", default="Beacon Store Export", help="Document title for HTML/PDF")
+    sub_export.set_defaults(func=cmd_export)
+
+    # health
+    sub_health = subparsers.add_parser("health", help="Run health diagnostics")
+    sub_health.add_argument("--config", metavar="PATH", default=None, help="Path to beacon.toml")
+    sub_health.add_argument(
+        "--db",
+        metavar="PATH",
+        default=None,
+        help="Path to SQLite DB (default: ~/.cache/beacon/beacon.db)",
+    )
+    sub_health.set_defaults(func=cmd_health)
 
     # dashboard
     sub_dash = subparsers.add_parser("dashboard", help="Start the web dashboard")
