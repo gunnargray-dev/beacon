@@ -91,6 +91,6 @@
 - [x] Config validation: `beacon check` command to lint beacon.toml for common errors
 - [ ] Migration system: versioned store schema migrations (auto-upgrade on startup)
 - [ ] `beacon shell` -- interactive REPL for ad-hoc queries and exploration
-- [ ] Structured logging: JSON log output with levels, timestamps, request IDs
+- [x] Structured logging: JSON log output with levels, timestamps, request IDs
 - [ ] Performance benchmarks: pytest-benchmark suite for store queries and sync pipeline
 - [ ] Plugin SDK: documented API + scaffold command for third-party connector development
