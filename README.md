@@ -10,8 +10,8 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 11 |
-| PRs merged | 15 |
+| Sessions | 12 |
+| PRs merged | 16 |
 | Source modules | 7 |
 | Intelligence modules | 5 |
 | Notification modules | 5 |
