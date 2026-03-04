@@ -756,6 +756,18 @@ def cmd_dashboard(args: argparse.Namespace) -> None:
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
+def cmd_shell(args: argparse.Namespace) -> None:
+    """Interactive REPL for ad-hoc store queries."""
+    from src.shell import run_shell
+
+    db_path = getattr(args, "db", None)
+    if not db_path:
+        print("Error: --db is required")
+        sys.exit(2)
+
+    raise SystemExit(run_shell(db_path=db_path))
+
+
 def cmd_check(args: argparse.Namespace) -> None:
     """Lint beacon.toml for common errors and print actionable warnings."""
     from pathlib import Path
@@ -939,6 +951,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub_dash.add_argument("--host", default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
     sub_dash.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
     sub_dash.set_defaults(func=cmd_dashboard)
+
+    # shell
+    sub_shell = subparsers.add_parser("shell", help="Interactive REPL for ad-hoc store queries")
+    sub_shell.add_argument("--db", metavar="PATH", required=True, help="Path to SQLite db")
+    sub_shell.set_defaults(func=cmd_shell)
 
     # health
     sub_health = subparsers.add_parser("health", help="Run health diagnostics")
