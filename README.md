@@ -10,14 +10,14 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 14 |
-| PRs merged | 18 |
+| Sessions | 15 |
+| PRs merged | 19 |
 | Source modules | 7 |
 | Intelligence modules | 5 |
 | Notification modules | 5 |
 | Advanced modules | 8 |
 | Tests passing | 688 |
-| CLI commands | 20 |
+| CLI commands | 21 |
 | Roadmap phases complete | 8/8 + Phase 9 in progress |
 
 ## What It Does
@@ -48,7 +48,7 @@ beacon/
   src/
     models.py          # Core data models
     config.py          # Configuration system
-    cli.py             # CLI framework (20 commands)
+    cli.py             # CLI framework (21 commands)
     health.py          # Health diagnostics
     connectors/        # Source connectors (GitHub, Calendar, Email, Weather, News, HN)
     intelligence/      # Briefing generator, priority scorer, conflict detector, pattern analyzer
@@ -110,6 +110,7 @@ github_token = "..."
 - `beacon ingest`
 - `beacon query`
 - `beacon web`
+- `beacon dashboard`
 - `beacon health`
 - `beacon export`
 - `beacon db`
