@@ -97,3 +97,13 @@ This file tracks what was built in each autonomous development session.
 - Added structured JSON logging utilities + request IDs (src/logging_utils.py)
 - Refactored CLI sync + daemon sync to use shared pipeline; added daemon flags --json-logs and --log-level
 - Added unit tests for logging utilities and sync retry integration
+
+## Session 15
+
+**Date**: 2026-03-04
+
+- Added stdlib-only SQLite migration runner using `PRAGMA user_version` and auto-applied on store init
+- Refactored store schema creation into versioned migrations
+- Added cursor encoding helpers for event/action pagination
+- Added initial pytest-benchmark suite for store query paths (runs with `--benchmark-disable` in CI)
+- Restored CLI `build_parser` test contract, added `--version`, and added `dashboard` alias
