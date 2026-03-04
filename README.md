@@ -10,14 +10,14 @@
 
 | Metric | Count |
 |--------|-------|
-| Sessions | 13 |
-| PRs merged | 17 |
+| Sessions | 14 |
+| PRs merged | 18 |
 | Source modules | 7 |
 | Intelligence modules | 5 |
 | Notification modules | 5 |
 | Advanced modules | 8 |
-| Tests passing | 683 |
-| CLI commands | 18 |
+| Tests passing | 688 |
+| CLI commands | 20 |
 | Roadmap phases complete | 8/8 + Phase 9 in progress |
 
 ## What It Does
@@ -48,7 +48,7 @@ beacon/
   src/
     models.py          # Core data models
     config.py          # Configuration system
-    cli.py             # CLI framework (18 commands)
+    cli.py             # CLI framework (20 commands)
     health.py          # Health diagnostics
     connectors/        # Source connectors (GitHub, Calendar, Email, Weather, News, HN)
     intelligence/      # Briefing generator, priority scorer, conflict detector, pattern analyzer
@@ -56,25 +56,64 @@ beacon/
     web/               # FastAPI dashboard with Jinja2 templates
     advanced/          # Retrospective, meeting prep, relationships, time audit, trends, export, API
     store_export/      # Store-backed export to JSON/HTML/PDF
-  tests/               # 683 tests
+  tests/               # 688 tests
   beacon.toml          # Configuration
-  ROADMAP.md           # Phases 1-8 complete, Phase 9 in progress
-  SESSION_LOG.md
-  .github/
-    BEACON_RULES.md
 ```
 
-## Development
+## Connectors
 
-This project is built autonomously by Perplexity Computer. Each session:
+Beacon ships with these built-in connectors:
 
-1. Reads repo state (roadmap, session log, code)
-2. Picks the next tasks from the roadmap
-3. Writes code, runs tests, iterates
-4. Pushes a PR, merges it, updates the log
-5. Fires again in 2 hours
+- **GitHub** -- notifications, review requests, assigned issues, recent commits
+- **Calendar** -- upcoming meetings, free/busy blocks, conflict detection
+- **Email** -- unread counts, flagged messages, sender frequency analysis
+- **Weather** -- current conditions and forecast for configured location
+- **News/RSS** -- configured feeds, keyword filtering, top headlines
+- **Hacker News** -- top stories, trending topics
 
-Want to steer development? Open an issue with the `human-priority` label.
+## Installation
+
+```bash
+pip install -e .
+```
+
+## Configuration
+
+Create `~/.config/beacon/beacon.toml` (or run `beacon init`):
+
+```toml
+[user]
+name = "Your Name"
+email = "you@example.com"
+timezone = "America/Chicago"
+
+[[sources]]
+name = "gh"
+type = "github"
+enabled = true
+github_token = "..."
+```
+
+## Commands
+
+- `beacon status`
+- `beacon init`
+- `beacon sources`
+- `beacon sources test [name]`
+- `beacon sync`
+- `beacon sync --daemon`
+- `beacon brief`
+- `beacon actions`
+- `beacon focus`
+- `beacon notify`
+- `beacon digest`
+- `beacon ingest`
+- `beacon query`
+- `beacon web`
+- `beacon health`
+- `beacon export`
+- `beacon db`
+- `beacon check`
 
 ## License
 
