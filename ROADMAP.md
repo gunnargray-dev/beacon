@@ -90,7 +90,7 @@
 - [x] Retry logic: exponential backoff helper + initial CLI integration for transient failures
 - [x] Config validation: `beacon check` command to lint beacon.toml for common errors
 - [x] Migration system: versioned store schema migrations (auto-upgrade on startup)
-- [ ] `beacon shell` -- interactive REPL for ad-hoc queries and exploration
+- [x] `beacon shell` -- interactive REPL for ad-hoc queries and exploration
 - [x] Structured logging: JSON log output with levels, timestamps, request IDs
 - [x] Performance benchmarks: pytest-benchmark suite for store queries and sync pipeline
 - [ ] Plugin SDK: documented API + scaffold command for third-party connector development
